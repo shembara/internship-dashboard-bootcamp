@@ -15,8 +15,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "NEXT_PUBLIC_AUTHENTICATION_MODE=google FIREBASE_AUTHENTICATION_MODE=google next build",
+    "start": "NEXT_PUBLIC_AUTHENTICATION_MODE=google FIREBASE_AUTHENTICATION_MODE=google next start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
