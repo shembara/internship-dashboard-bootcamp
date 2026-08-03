@@ -1,0 +1,43 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# testing
+/coverage
+/playwright-report
+/test-results
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# Firebase
+/.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# local credentials
+*.pem
+*service-account*.json
+
+# environment files
+.env*
+!.env.example
+
+# editors and operating systems
+.DS_Store
+.idea/
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts

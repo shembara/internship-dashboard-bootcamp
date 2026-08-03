@@ -1,0 +1,23 @@
+runConfig:
+  minInstances: 0
+  maxInstances: 3
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+env:
+  # Replace this value with the canonical App Hosting URL before deployment.
+  - variable: APP_ORIGIN
+    value: "https://replace-with-app-hosting-url.example"
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_AUTHENTICATION_MODE
+    value: "google"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_AUTHENTICATION_MODE
+    value: "google"
+    availability:
+      - BUILD
+      - RUNTIME
