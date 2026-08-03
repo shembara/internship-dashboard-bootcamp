@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
 
 import { assignmentErrorResponse } from "@/server/assignments/http";
 import { requireProgressHubMutationContext } from "@/server/progress-hub/http";

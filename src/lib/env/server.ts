@@ -30,7 +30,7 @@ export function getServerEnvironment(): ServerEnvironment {
     process.env.FIREBASE_AUTHENTICATION_MODE &&
     process.env.NEXT_PUBLIC_AUTHENTICATION_MODE &&
     process.env.FIREBASE_AUTHENTICATION_MODE !==
-      process.env.NEXT_PUBLIC_AUTHENTICATION_MODE
+    process.env.NEXT_PUBLIC_AUTHENTICATION_MODE
   ) {
     throw new Error("Client and server authentication modes must match.");
   }
