@@ -3,6 +3,8 @@
 /.pnp
 .pnp.*
 
+private_key.json
+
 # testing
 /coverage
 /playwright-report
