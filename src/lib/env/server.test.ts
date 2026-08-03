@@ -5,6 +5,7 @@ import { getServerEnvironment } from "./server";
 const originalEnvironment = {
   FIREBASE_AUTHENTICATION_MODE: process.env.FIREBASE_AUTHENTICATION_MODE,
   FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID,
+  GOOGLE_CLOUD_PROJECT: process.env.GOOGLE_CLOUD_PROJECT,
   NEXT_PUBLIC_AUTHENTICATION_MODE: process.env.NEXT_PUBLIC_AUTHENTICATION_MODE,
   NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
 };
@@ -31,7 +32,19 @@ describe("getServerEnvironment", () => {
     );
   });
 
+  it("requires a server project ID in production", () => {
+    delete process.env.FIREBASE_PROJECT_ID;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = "browser-only-project";
+    vi.stubEnv("NODE_ENV", "production");
+
+    expect(() => getServerEnvironment()).toThrow(
+      "FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required in production.",
+    );
+  });
+
   it("rejects development email/password mode in production", () => {
+    process.env.FIREBASE_PROJECT_ID = "production-project";
     process.env.FIREBASE_AUTHENTICATION_MODE = "email-password-development";
     vi.stubEnv("NODE_ENV", "production");
 
