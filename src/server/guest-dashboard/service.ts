@@ -150,11 +150,12 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         .map((entry) => entry.data())
         .filter(current)
         .map((entry) => entry.userId as string);
-      const users = await adminFirestore.getAll(
-        ...[...new Set([...mentorIds, ...managerIds])].map((id) =>
-          adminFirestore.collection("users").doc(id),
-        ),
+      const userReferences = [...new Set([...mentorIds, ...managerIds])].map((id) =>
+        adminFirestore.collection("users").doc(id),
       );
+      const users = userReferences.length
+        ? await adminFirestore.getAll(...userReferences)
+        : [];
       const names = new Map(
         users.map((user) => [user.id, user.data()?.displayName as string | undefined]),
       );
@@ -195,8 +196,12 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         startsAt: startedAt.toDate().toISOString(),
         dayOfInternship,
         project: team?.data()?.title as string | undefined,
-        mentors: mentorIds.map((id) => names.get(id) ?? "Unknown mentor"),
-        managers: managerIds.map((id) => names.get(id) ?? "Unknown manager"),
+        mentor: mentorIds[0]
+          ? (names.get(mentorIds[0]) ?? "Unknown mentor")
+          : undefined,
+        manager: managerIds[0]
+          ? (names.get(managerIds[0]) ?? "Unknown manager")
+          : undefined,
         requiredCompletedCount: completed,
         requiredTotalCount: required.length,
         timeline: [

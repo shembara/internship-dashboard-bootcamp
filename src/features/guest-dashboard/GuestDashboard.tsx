@@ -80,11 +80,11 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Mentor</dt>
-                    <dd>{item.mentors.join(", ") || "None"}</dd>
+                    <dd>{item.mentor ?? "None"}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Manager</dt>
-                    <dd>{item.managers.join(", ") || "None"}</dd>
+                    <dd>{item.manager ?? "None"}</dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Length of internship</dt>

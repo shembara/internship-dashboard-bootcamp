@@ -8,8 +8,8 @@ export type GuestDashboardItem = {
   startsAt: string;
   dayOfInternship: number;
   project?: string;
-  mentors: string[];
-  managers: string[];
+  mentor?: string;
+  manager?: string;
   requiredCompletedCount: number;
   requiredTotalCount: number;
   timeline: Array<{

@@ -20,8 +20,8 @@ function dashboard(): GuestDashboardDto {
         currentStage: "finalReview",
         startsAt: "2026-08-03T00:00:00.000Z",
         dayOfInternship: 10,
-        mentors: [],
-        managers: [],
+        mentor: "Grace Hopper",
+        manager: "Katherine Johnson",
         requiredCompletedCount: 0,
         requiredTotalCount: 0,
         timeline: [
@@ -60,6 +60,8 @@ describe("GuestDashboard", () => {
     expect(screen.getByText("Started 08/03/2026")).toBeTruthy();
     expect(screen.getByText("Length of internship")).toBeTruthy();
     expect(screen.getByText("10 days")).toBeTruthy();
+    expect(screen.getByText("Grace Hopper")).toBeTruthy();
+    expect(screen.getByText("Katherine Johnson")).toBeTruthy();
   });
 
   it("shows all internship profile events when details are expanded", () => {
