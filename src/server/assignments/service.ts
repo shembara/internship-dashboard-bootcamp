@@ -20,8 +20,9 @@ import {
   isCurrent,
   isOperationalInternshipStatus,
   isOngoingOrScheduled,
+  placementDocumentSchema,
   rangesOverlap,
-  type DateRange,
+  teammateAssignmentDocumentSchema,
 } from "@/server/assignments/domain";
 import { readManagerMutationAccess } from "@/server/assignments/manager-access";
 import { adminFirestore } from "@/server/firebase/admin";
@@ -405,7 +406,7 @@ export async function getManagedInternshipDetail(
       progressHub,
     },
     placements: placements.docs.map((document) => {
-      const data = document.data() as DateRange & { teamId: string };
+      const data = placementDocumentSchema.parse(document.data());
       return {
         id: document.id,
         teamId: data.teamId,
@@ -417,11 +418,7 @@ export async function getManagedInternshipDetail(
       };
     }),
     assignments: assignments.docs.map((document) => {
-      const data = document.data() as DateRange & {
-        teamId: string;
-        teammateUserId: string;
-        responsibilities: string[];
-      };
+      const data = teammateAssignmentDocumentSchema.parse(document.data());
       return {
         id: document.id,
         teamId: data.teamId,
@@ -625,7 +622,7 @@ export async function addTeamPlacement(
     );
     const existing = placements.docs.map((document) => ({
       ref: document.ref,
-      ...(document.data() as DateRange & { teamId: string }),
+      ...placementDocumentSchema.parse(document.data()),
     }));
     if (existing.some((placement) => rangesOverlap(placement, input))) {
       const ongoing = existing.find(
@@ -644,7 +641,7 @@ export async function addTeamPlacement(
         internshipRef.collection("teammateAssignments"),
       );
       teammates.docs.forEach((document) => {
-        const assignment = document.data() as DateRange & { teamId: string };
+        const assignment = teammateAssignmentDocumentSchema.parse(document.data());
         if (assignment.teamId === ongoing.teamId && !assignment.endsAt) {
           transaction.update(document.ref, {
             endsAt: previousEnd,
@@ -690,7 +687,7 @@ export async function addTeammateAssignment(
       internshipRef.collection("teamPlacements"),
     );
     const hasPlacement = placements.docs.some((document) => {
-      const placement = document.data() as DateRange & { teamId: string };
+      const placement = placementDocumentSchema.parse(document.data());
       return placement.teamId === input.teamId && containsRange(placement, input);
     });
     if (!hasPlacement)
@@ -698,22 +695,36 @@ export async function addTeammateAssignment(
     const assignments = await transaction.get(
       internshipRef.collection("teammateAssignments"),
     );
-    if (
-      assignments.docs.some((document) => {
-        const assignment = document.data() as DateRange & {
-          teammateUserId: string;
-          teamId: string;
-        };
-        return (
+    const sameTeammateAndTeam = assignments.docs
+      .map((document) => ({
+        ref: document.ref,
+        ...teammateAssignmentDocumentSchema.parse(document.data()),
+      }))
+      .filter(
+        (assignment) =>
           assignment.teammateUserId === input.teammateUserId &&
-          assignment.teamId === input.teamId &&
-          rangesOverlap(assignment, input)
-        );
-      })
-    )
-      throw new Error(
-        "This teammate already has an overlapping assignment for this Team.",
+          assignment.teamId === input.teamId,
       );
+    const overlapping = sameTeammateAndTeam.filter((assignment) =>
+      rangesOverlap(assignment, input),
+    );
+    if (overlapping.length) {
+      const ongoing = overlapping.find(
+        (assignment) =>
+          !assignment.endsAt &&
+          assignment.startsAt.toMillis() < input.startsAt.toMillis(),
+      );
+      if (!ongoing || overlapping.length > 1) {
+        throw new Error(
+          "This teammate already has an overlapping assignment for this Team.",
+        );
+      }
+      transaction.update(ongoing.ref, {
+        endsAt: Timestamp.fromMillis(input.startsAt.toMillis() - 1),
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: managerId,
+      });
+    }
     transaction.create(internshipRef.collection("teammateAssignments").doc(), {
       ...input,
       createdAt: FieldValue.serverTimestamp(),
@@ -723,6 +734,21 @@ export async function addTeammateAssignment(
     });
   });
   return { displayName: eligibleUser.displayName };
+}
+
+async function hasOtherCurrentMentor(
+  transaction: FirebaseFirestore.Transaction,
+  internshipRef: DocumentReference,
+  excludeAssignmentId: string,
+) {
+  const assignments = await transaction.get(
+    internshipRef.collection("teammateAssignments"),
+  );
+  return assignments.docs.some((document) => {
+    if (document.id === excludeAssignmentId) return false;
+    const assignment = teammateAssignmentDocumentSchema.parse(document.data());
+    return assignment.responsibilities.includes("mentor") && isCurrent(assignment);
+  });
 }
 
 export async function updateTeammateResponsibilities(
@@ -746,8 +772,21 @@ export async function updateTeammateResponsibilities(
       throw new Error("Completed and cancelled internships are read-only.");
     }
     if (!assignment.exists) throw new Error("Teammate assignment not found.");
-    if (assignmentStatus(assignment.data() as DateRange) === "ended") {
+    const current = teammateAssignmentDocumentSchema.parse(assignment.data());
+    if (assignmentStatus(current) === "ended") {
       throw new Error("Ended assignments cannot be edited.");
+    }
+    const losesMentorResponsibility =
+      current.responsibilities.includes("mentor") &&
+      !responsibilities.includes("mentor") &&
+      isCurrent(current);
+    if (
+      losesMentorResponsibility &&
+      !(await hasOtherCurrentMentor(transaction, internshipRef, assignmentId))
+    ) {
+      throw new Error(
+        "Assign a replacement mentor before removing the final current mentor.",
+      );
     }
     transaction.update(assignmentRef, {
       responsibilities,
@@ -775,7 +814,17 @@ export async function closeTeammateAssignment(
       throw new Error("Completed and cancelled internships are read-only.");
     }
     if (!assignment.exists) throw new Error("Teammate assignment not found.");
-    if ((assignment.data() as DateRange).endsAt) return;
+    const current = teammateAssignmentDocumentSchema.parse(assignment.data());
+    if (current.endsAt) return;
+    const isLastCurrentMentor =
+      current.responsibilities.includes("mentor") &&
+      isCurrent(current) &&
+      !(await hasOtherCurrentMentor(transaction, internshipRef, assignmentId));
+    if (isLastCurrentMentor) {
+      throw new Error(
+        "Assign a replacement mentor before ending the final current mentor's assignment.",
+      );
+    }
     transaction.update(assignmentRef, {
       endsAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
