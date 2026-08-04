@@ -20,7 +20,6 @@ function dashboard(): GuestDashboardDto {
         currentStage: "finalReview",
         startsAt: "2026-08-01T00:00:00.000Z",
         dayOfInternship: 10,
-        dayOfInternshipDate: "2026-08-10T00:00:00.000Z",
         mentors: [],
         managers: [],
         requiredCompletedCount: 0,
@@ -55,10 +54,12 @@ function dashboard(): GuestDashboardDto {
 }
 
 describe("GuestDashboard", () => {
-  it("shows a completed internship's final duration and completion date", () => {
+  it("shows the start date and completed internship duration", () => {
     render(<GuestDashboard dashboard={dashboard()} />);
 
-    expect(screen.getByText("Day 10 · 10 Aug 2026")).toBeTruthy();
+    expect(screen.getByText("Started 08/01/2026")).toBeTruthy();
+    expect(screen.getByText("Length of internship")).toBeTruthy();
+    expect(screen.getByText("10 days")).toBeTruthy();
   });
 
   it("shows all internship profile events when details are expanded", () => {

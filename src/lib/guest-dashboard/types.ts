@@ -7,7 +7,6 @@ export type GuestDashboardItem = {
   currentStage: InternshipStage;
   startsAt: string;
   dayOfInternship: number;
-  dayOfInternshipDate: string;
   project?: string;
   mentors: string[];
   managers: string[];

@@ -6,7 +6,11 @@ import type {
   GuestDashboardDto,
   GuestDashboardItem,
 } from "@/lib/guest-dashboard/types";
-import { internshipStages } from "@/lib/internships/types";
+import {
+  internshipStages,
+  internshipStatuses,
+  type InternshipStatus,
+} from "@/lib/internships/types";
 import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
 import { adminFirestore } from "@/server/firebase/admin";
@@ -40,15 +44,74 @@ function dateInApplicationTimeZone(value: Timestamp) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
-function inclusiveCalendarDayCount(startsAt: Timestamp, endsAt: Timestamp) {
-  return Math.max(
-    1,
-    Math.round(
-      (Date.parse(`${dateInApplicationTimeZone(endsAt)}T00:00:00.000Z`) -
-        Date.parse(`${dateInApplicationTimeZone(startsAt)}T00:00:00.000Z`)) /
-        86_400_000,
-    ) + 1,
+function calendarDayDistance(from: string, to: string) {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
+      86_400_000,
   );
+}
+
+function isInternshipStatus(value: unknown): value is InternshipStatus {
+  return internshipStatuses.some((status) => status.value === value);
+}
+
+type StatusChange = { status: InternshipStatus; changedAt: Timestamp };
+
+function internshipDayCount(
+  startsAt: Timestamp,
+  currentStatus: InternshipStatus,
+  endsAt: Timestamp | undefined,
+  changes: StatusChange[],
+) {
+  let activeSince = dateInApplicationTimeZone(startsAt);
+  let active = true;
+  let count = 0;
+
+  function countActiveDays(through: string, inclusive: boolean) {
+    count += Math.max(0, calendarDayDistance(activeSince, through) + Number(inclusive));
+  }
+
+  for (const change of changes.sort(
+    (a, b) => a.changedAt.toMillis() - b.changedAt.toMillis(),
+  )) {
+    if (change.changedAt.toMillis() < startsAt.toMillis()) continue;
+    const changedOn = dateInApplicationTimeZone(change.changedAt);
+
+    if (active && change.status === "paused") {
+      countActiveDays(changedOn, false);
+      active = false;
+    } else if (!active && change.status === "active") {
+      activeSince = changedOn;
+      active = true;
+    } else if (
+      active &&
+      (change.status === "completed" || change.status === "cancelled")
+    ) {
+      const finalDate =
+        change.status === "completed" && endsAt
+          ? dateInApplicationTimeZone(endsAt)
+          : changedOn;
+      countActiveDays(finalDate, true);
+      active = false;
+    } else if (
+      !active &&
+      (change.status === "completed" || change.status === "cancelled")
+    ) {
+      active = false;
+    }
+  }
+
+  if (active) {
+    const finalDate =
+      currentStatus === "completed" && endsAt
+        ? dateInApplicationTimeZone(endsAt)
+        : currentStatus === "cancelled"
+          ? activeSince
+          : dateInApplicationTimeZone(Timestamp.now());
+    countActiveDays(finalDate, currentStatus !== "paused");
+  }
+
+  return Math.max(1, count);
 }
 
 export async function getGuestDashboard(): Promise<GuestDashboardDto> {
@@ -76,7 +139,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         ref.collection("stageProgress").limit(internshipStages.length).get(),
         ref.collection("mentorCheckIns").orderBy("weekKey", "desc").limit(16).get(),
         ref.collection("achievements").orderBy("achievedOn", "desc").limit(100).get(),
-        ref.collection("statusHistory").orderBy("changedAt", "desc").limit(50).get(),
+        ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
       ]);
       const mentorIds = teammates.docs
         .map((entry) => entry.data())
@@ -106,22 +169,31 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
       const feedback = checkIns.docs
         .map((entry) => entry.data())
         .find((entry) => entry.state === "shared");
-      const dayOfInternshipDate =
-        internship.status === "completed" && internship.endsAt
-          ? internship.endsAt
-          : Timestamp.now();
+      const statusChanges = history.docs.flatMap((entry) => {
+        const data = entry.data();
+        return data.changedAt instanceof Timestamp && isInternshipStatus(data.newStatus)
+          ? [{ status: data.newStatus, changedAt: data.changedAt }]
+          : [];
+      });
+      const startedAt =
+        statusChanges
+          .filter((change) => change.status === "active")
+          .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())[0]
+          ?.changedAt ?? internship.startsAt;
+      const dayOfInternship = internshipDayCount(
+        startedAt,
+        internship.status,
+        internship.endsAt,
+        statusChanges,
+      );
       return {
         id: document.id,
         internName:
           (intern.data()?.displayName as string | undefined) ?? "Unknown intern",
         status: internship.status,
         currentStage: internship.currentStage,
-        startsAt: internship.startsAt.toDate().toISOString(),
-        dayOfInternship: inclusiveCalendarDayCount(
-          internship.startsAt,
-          dayOfInternshipDate,
-        ),
-        dayOfInternshipDate: dayOfInternshipDate.toDate().toISOString(),
+        startsAt: startedAt.toDate().toISOString(),
+        dayOfInternship,
         project: team?.data()?.title as string | undefined,
         mentors: mentorIds.map((id) => names.get(id) ?? "Unknown mentor"),
         managers: managerIds.map((id) => names.get(id) ?? "Unknown manager"),
