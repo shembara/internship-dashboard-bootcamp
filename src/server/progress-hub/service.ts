@@ -25,7 +25,7 @@ import {
   getWeekPeriod,
   progressHubTimeZone,
 } from "@/lib/progress-hub/week";
-import { isCurrent } from "@/server/assignments/domain";
+import { isCurrent, isOngoingOrScheduled } from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import {
@@ -472,7 +472,10 @@ async function actionOwnerOptions(
   });
   teammateAssignments.docs.forEach((document) => {
     const assignment = mentorAssignmentSchema.parse(document.data());
-    if (assignment.responsibilities.includes("mentor") && isCurrent(assignment)) {
+    if (
+      assignment.responsibilities.includes("mentor") &&
+      isOngoingOrScheduled(assignment)
+    ) {
       owners.set(assignment.teammateUserId, "mentor");
     }
   });
@@ -548,18 +551,18 @@ async function getProgressHubForViewer(
       .get(),
     viewer === "intern"
       ? internshipRef
-          .collection("privateInternNotes")
-          .orderBy("createdAt", "desc")
-          .limit(50)
-          .get()
+        .collection("privateInternNotes")
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get()
       : Promise.resolve(undefined),
     viewer === "intern"
       ? Promise.resolve(undefined)
       : internshipRef
-          .collection("mentorPrivateNotes")
-          .orderBy("createdAt", "desc")
-          .limit(50)
-          .get(),
+        .collection("mentorPrivateNotes")
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get(),
     internshipRef.collection("actionItems").orderBy("dueDate", "asc").get(),
     actionOwnerOptions(internshipRef, internship),
   ]);
@@ -596,8 +599,8 @@ async function getProgressHubForViewer(
       : undefined;
   const summaryCheckIn =
     viewer === "manager" ||
-    currentCheckIn?.state === "shared" ||
-    (viewer === "mentor" && currentCheckIn?.createdBy === userId)
+      currentCheckIn?.state === "shared" ||
+      (viewer === "mentor" && currentCheckIn?.createdBy === userId)
       ? currentCheckIn
       : undefined;
   const latestSharedCheckInAt = parsedCheckIns
@@ -641,9 +644,9 @@ async function getProgressHubForViewer(
       ...common,
       reflection: currentReflection
         ? reflectionDto(
-            currentReflection,
-            access.writable && currentWeek.state === "current",
-          )
+          currentReflection,
+          access.writable && currentWeek.state === "current",
+        )
         : undefined,
       reflectionHistory: parsedReflections.map((record) =>
         reflectionDto(
@@ -1119,10 +1122,10 @@ export async function saveActionItem(
         ...(existing.exists
           ? {}
           : {
-              status: "open",
-              createdAt: FieldValue.serverTimestamp(),
-              createdBy: userId,
-            }),
+            status: "open",
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: userId,
+          }),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,
       },

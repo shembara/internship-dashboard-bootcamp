@@ -6,6 +6,7 @@ import {
   assertValidRange,
   containsRange,
   isCurrent,
+  isCurrentManagerAssignment,
   isOngoingOrScheduled,
   rangesOverlap,
 } from "./domain";
@@ -27,6 +28,14 @@ describe("assignment date ranges", () => {
     expect(assignmentStatus({ startsAt: at(100), endsAt: at(200) }, at(201))).toBe(
       "ended",
     );
+  });
+
+  it("allows manager assignments for scheduled internships", () => {
+    const scheduled = { startsAt: at(200) };
+    const ended = { startsAt: at(100), endsAt: at(150) };
+
+    expect(isCurrentManagerAssignment(scheduled, at(100))).toBe(true);
+    expect(isCurrentManagerAssignment(ended, at(200))).toBe(false);
   });
 
   it("keeps an intern unavailable through an inclusive end date", () => {

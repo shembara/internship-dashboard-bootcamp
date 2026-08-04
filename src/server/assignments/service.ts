@@ -274,7 +274,8 @@ export async function getCurrentInternshipForIntern(
   }));
   const current = candidates
     .filter(
-      (internship) => internship.status === "active" && isCurrent(internship, now),
+      (internship) =>
+        internship.status === "active" && isOngoingOrScheduled(internship, now),
     )
     .sort((a, b) => b.startsAt.toMillis() - a.startsAt.toMillis())[0];
   const historical = candidates
@@ -288,21 +289,21 @@ export async function getCurrentInternshipForIntern(
 
   return selected
     ? await (async () => {
-        const checklist = await getStageChecklist(selected.ref, selected, internId);
-        const progressHub = await getInternProgressHub(
-          selected.ref,
-          selected,
-          internId,
-          checklist,
-        );
-        return {
-          id: selected.id,
-          status: selected.status,
-          currentStage: selected.currentStage,
-          checklist,
-          progressHub,
-        };
-      })()
+      const checklist = await getStageChecklist(selected.ref, selected, internId);
+      const progressHub = await getInternProgressHub(
+        selected.ref,
+        selected,
+        internId,
+        checklist,
+      );
+      return {
+        id: selected.id,
+        status: selected.status,
+        currentStage: selected.currentStage,
+        checklist,
+        progressHub,
+      };
+    })()
     : undefined;
 }
 
@@ -505,8 +506,8 @@ export async function createInternship(
       transaction.get(managerRef),
       input.initialMentorUserId
         ? transaction.get(
-            adminFirestore.collection("users").doc(input.initialMentorUserId),
-          )
+          adminFirestore.collection("users").doc(input.initialMentorUserId),
+        )
         : Promise.resolve(undefined),
       transaction.get(conflictsQuery),
       transaction.get(guardRef),
