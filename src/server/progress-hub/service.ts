@@ -638,18 +638,18 @@ async function getProgressHubForViewer(
       ...common,
       reflection: currentReflection
         ? reflectionDto(
-            currentReflection,
-            access.writable &&
-              currentWeek.state === "current" &&
-              currentReflection.state !== "submitted",
-          )
+          currentReflection,
+          access.writable &&
+          currentWeek.state === "current" &&
+          currentReflection.state !== "submitted",
+        )
         : undefined,
       reflectionHistory: parsedReflections.map((record) =>
         reflectionDto(
           record.data,
           access.writable &&
-            record.data.weekKey === currentWeek.key &&
-            record.data.state !== "submitted",
+          record.data.weekKey === currentWeek.key &&
+          record.data.state !== "submitted",
         ),
       ),
       mentorCheckIns: visibleCheckIns,
@@ -687,16 +687,16 @@ async function getProgressHubForViewer(
       reflections: visibleReflections,
       checkIn: currentMentorCheckIn
         ? checkInDto(
-            currentMentorCheckIn,
-            access.writable && currentMentorCheckIn.state !== "shared",
-          )
+          currentMentorCheckIn,
+          access.writable && currentMentorCheckIn.state !== "shared",
+        )
         : undefined,
       checkInHistory: visibleCheckIns.map((record) =>
         checkInDto(
           record.data,
           access.writable &&
-            record.data.weekKey === currentWeek.key &&
-            record.data.state !== "shared",
+          record.data.weekKey === currentWeek.key &&
+          record.data.state !== "shared",
         ),
       ),
       privateMentorNotes: visibleMentorNotes,
@@ -882,7 +882,7 @@ export async function saveMentorCheckIn(
         "Mentor check-in belongs to another mentor and cannot be overwritten.",
       );
     }
-    assertCheckInTransition(previous, input.state);
+    assertCheckInTransition(previous);
     transaction.set(
       checkInRef,
       {
