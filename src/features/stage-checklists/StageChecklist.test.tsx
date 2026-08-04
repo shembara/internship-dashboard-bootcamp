@@ -25,6 +25,7 @@ function checklist(): StageChecklistDto {
       status: "todo" as const,
       completed: false,
       canComplete: true,
+      lockedForIntern: false,
     },
     {
       key: "notes",
@@ -33,6 +34,7 @@ function checklist(): StageChecklistDto {
       status: "inProgress" as const,
       completed: false,
       canComplete: true,
+      lockedForIntern: false,
     },
     {
       key: "tools",
@@ -41,6 +43,7 @@ function checklist(): StageChecklistDto {
       status: "done" as const,
       completed: true,
       canComplete: true,
+      lockedForIntern: false,
     },
   ];
   return {
@@ -55,6 +58,7 @@ function checklist(): StageChecklistDto {
     isStageCompleted: false,
     canCompleteStage: true,
     canAddTasks: true,
+    canReviewDoneTasks: true,
   };
 }
 
@@ -72,13 +76,18 @@ describe("StageChecklist", () => {
     );
   });
 
-  it("sends a status update when a task is started", async () => {
+  it("sends a status update when a task is moved", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
     );
     render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
-    await userEvent.setup().click(screen.getByRole("button", { name: "Start" }));
+    await userEvent
+      .setup()
+      .selectOptions(
+        screen.getByLabelText("Move Accounts configured to"),
+        "inProgress",
+      );
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("/items"),
       expect.objectContaining({
@@ -90,5 +99,16 @@ describe("StageChecklist", () => {
         }),
       }),
     );
+  });
+
+  it("renders the required-task progress bar and mentor review action", () => {
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Required task progress" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("1");
+    expect(screen.getByRole("button", { name: "Confirm mentor review" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
   });
 });

@@ -98,7 +98,31 @@ describe("checklist access", () => {
         document(undefined),
         assignments(currentMentorAssignment),
       ),
-    ).toEqual({ completionActors: ["mentor"], canAdvance: true });
+    ).toMatchObject({
+      completionActors: ["mentor"],
+      canAdvance: true,
+      canMoveTasks: true,
+      canAddTasks: true,
+      canReviewTasks: true,
+      isIntern: false,
+    });
+  });
+
+  it("allows the assigned intern to add tasks but not review them", () => {
+    expect(
+      resolveChecklistAccess(
+        internship(),
+        "intern-1",
+        document(appUser(["intern"])),
+        document(undefined),
+        assignments(),
+      ),
+    ).toMatchObject({
+      completionActors: ["intern"],
+      canAddTasks: true,
+      canReviewTasks: false,
+      isIntern: true,
+    });
   });
 
   it("denies inactive users even when their assignment is current", () => {
@@ -128,7 +152,7 @@ describe("checklist access", () => {
     ).toThrow("cannot view this internship");
   });
 
-  it("removes mentor advancement when the current assignment loses mentor responsibility", () => {
+  it("allows an active teammate assignment to work with the task board", () => {
     const access = resolveChecklistAccess(
       internship(),
       "mentor-1",
@@ -139,6 +163,9 @@ describe("checklist access", () => {
 
     expect(access.completionActors).toEqual([]);
     expect(access.canAdvance).toBe(false);
+    expect(access.canMoveTasks).toBe(true);
+    expect(access.canAddTasks).toBe(true);
+    expect(access.canReviewTasks).toBe(true);
   });
 
   it("rejects a manager when the current assignment snapshot has been removed", () => {

@@ -25,20 +25,15 @@ function TaskCard({
   onStatusChange: (status: StageChecklistItemDto["status"]) => void;
   pending: boolean;
 }) {
-  const nextStatus =
-    item.status === "todo"
-      ? "inProgress"
-      : item.status === "inProgress"
-        ? "done"
-        : "todo";
-  const buttonLabel =
-    item.status === "todo"
-      ? "Start"
-      : item.status === "inProgress"
-        ? "Mark done"
-        : "Reopen";
   return (
-    <article className="rounded-xl border bg-card p-3 shadow-sm">
+    <article
+      draggable={item.canComplete && !pending}
+      className="rounded-xl border bg-card p-3 shadow-sm"
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", item.key);
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{item.label}</p>
         <span
@@ -51,19 +46,71 @@ function TaskCard({
           {item.type === "required" ? "Required" : "Recommended"}
         </span>
       </div>
+      {item.reviewedAt ? (
+        <p className="mt-3 text-xs font-medium text-[var(--brand-strong)]">
+          Mentor reviewed
+        </p>
+      ) : null}
       {item.canComplete ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="mt-3 w-full"
-          disabled={pending}
-          onClick={() => onStatusChange(nextStatus)}
-        >
-          {pending ? "Saving…" : buttonLabel}
-        </Button>
+        <label className="mt-3 block text-xs font-medium text-muted-foreground">
+          Move {item.label} to
+          <select
+            className="mt-1 w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground"
+            value={item.status}
+            disabled={pending}
+            onChange={(event) =>
+              onStatusChange(event.target.value as StageChecklistItemDto["status"])
+            }
+          >
+            {columns.map((column) => (
+              <option key={column.status} value={column.status}>
+                {column.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      {item.lockedForIntern ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          This mentor-reviewed task is locked.
+        </p>
       ) : null}
     </article>
+  );
+}
+
+function RequestChangesForm({
+  onSubmit,
+  pending,
+  close,
+}: {
+  onSubmit: (comment: string) => Promise<boolean>;
+  pending: boolean;
+  close: () => void;
+}) {
+  const [comment, setComment] = useState("");
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (await onSubmit(comment)) close();
+      }}
+    >
+      <label className="block space-y-1.5 text-sm font-medium">
+        Requested changes
+        <textarea
+          className="min-h-28 w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+          required
+          maxLength={1000}
+        />
+      </label>
+      <Button type="submit" disabled={pending || !comment.trim()}>
+        {pending ? "Sending…" : "Request changes"}
+      </Button>
+    </form>
   );
 }
 
@@ -126,6 +173,12 @@ export function StageChecklist({
   const [error, setError] = useState("");
   const renderedChecklist = useRef(checklist);
   const isPending = Boolean(pending);
+  const requiredProgress =
+    checklist.requiredTotalCount === 0
+      ? 0
+      : Math.round(
+          (checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100,
+        );
 
   useEffect(() => {
     if (renderedChecklist.current !== checklist) {
@@ -218,9 +271,29 @@ export function StageChecklist({
           ) : null}
         </div>
       </div>
+      <div
+        className="h-3 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label="Required task progress"
+        aria-valuemin={0}
+        aria-valuemax={checklist.requiredTotalCount}
+        aria-valuenow={checklist.requiredCompletedCount}
+        aria-valuetext={`${checklist.requiredCompletedCount} of ${checklist.requiredTotalCount} required tasks done`}
+      >
+        <div
+          className="h-full rounded-full bg-[var(--brand)] transition-[width]"
+          style={{ width: `${requiredProgress}%` }}
+        />
+      </div>
       {!checklist.readyToComplete && checklist.canCompleteStage ? (
         <p className="text-sm text-muted-foreground">
           All required tasks must be in Done before the next stage can be approved.
+        </p>
+      ) : null}
+      {checklist.latestReviewRequest ? (
+        <p className="rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)]/35 p-3 text-sm">
+          <span className="font-medium">Latest mentor feedback:</span>{" "}
+          {checklist.latestReviewRequest}
         </p>
       ) : null}
       <div className="grid gap-4 md:grid-cols-3">
@@ -231,6 +304,21 @@ export function StageChecklist({
               key={column.status}
               className="min-h-48 rounded-xl border bg-muted/30 p-3"
               aria-label={column.title}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const itemKey = event.dataTransfer.getData("text/plain");
+                const item = checklist.items.find(
+                  (candidate) => candidate.key === itemKey,
+                );
+                if (item && item.status !== column.status && item.canComplete) {
+                  mutate(
+                    `/api/internships/${internshipId}/stage-checklist/items`,
+                    { stage: checklist.stage, itemKey, status: column.status },
+                    itemKey,
+                  );
+                }
+              }}
             >
               <h3 className="mb-3 font-semibold">
                 {column.title}{" "}
@@ -254,6 +342,57 @@ export function StageChecklist({
                   />
                 ))}
               </div>
+              {column.status === "done" && checklist.canReviewDoneTasks ? (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full"
+                    disabled={isPending}
+                    onClick={() =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/items/review`,
+                        { stage: checklist.stage, action: "approve" },
+                        "review-done",
+                      )
+                    }
+                  >
+                    {pending === "review-done" ? "Saving…" : "Confirm mentor review"}
+                  </Button>
+                  <Modal
+                    trigger={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Request changes
+                      </Button>
+                    }
+                    title="Request changes"
+                    description="Explain what the intern needs to change."
+                  >
+                    {(close) => (
+                      <RequestChangesForm
+                        close={close}
+                        pending={isPending}
+                        onSubmit={(comment) =>
+                          mutate(
+                            `/api/internships/${internshipId}/stage-checklist/items/review`,
+                            {
+                              stage: checklist.stage,
+                              action: "requestChanges",
+                              comment,
+                            },
+                            "request-changes",
+                          )
+                        }
+                      />
+                    )}
+                  </Modal>
+                </div>
+              ) : null}
             </section>
           );
         })}
