@@ -15,9 +15,9 @@ describe("SignInCard", () => {
     expect(markup).toContain("Internship Dashboard");
     expect(markup).toContain("Authenticate as manager");
     expect(markup).toContain("Authenticate as guest");
-    expect(markup).toContain("manager@example.com");
-    expect(markup).toContain("mentor@example.com");
-    expect(markup).toContain("intern@example.com");
-    expect(markup).toContain("guest@example.com");
+    expect(markup).toContain("manager@fluxon.com");
+    expect(markup).toContain("mentor@fluxon.com");
+    expect(markup).toContain("intern@ucu.edu.ua");
+    expect(markup).toContain("guest@ucu.edu.ua");
   });
 });

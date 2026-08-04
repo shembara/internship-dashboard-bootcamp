@@ -17,22 +17,22 @@ const localPersonas = [
   {
     id: "manager",
     name: "Maya Manager",
-    email: "manager@example.com",
+    email: "manager@fluxon.com",
   },
   {
     id: "mentor",
     name: "Morgan Mentor",
-    email: "mentor@example.com",
+    email: "mentor@fluxon.com",
   },
   {
     id: "intern",
     name: "Indira Intern",
-    email: "intern@example.com",
+    email: "intern@ucu.edu.ua",
   },
   {
     id: "guest",
     name: "Gina Guest",
-    email: "guest@example.com",
+    email: "guest@ucu.edu.ua",
   },
 ] as const;
 
@@ -48,8 +48,11 @@ async function establishServerSession(credential: UserCredential): Promise<void>
 
   if (!response.ok) {
     const result = (await response.json().catch(() => undefined)) as
-      { error?: string } | undefined;
-    throw new Error(result?.error ?? "Unable to create an application session.");
+      | { error?: string }
+      | undefined;
+    throw new Error(
+      result?.error ?? "Unable to create an application session.",
+    );
   }
 }
 
@@ -70,28 +73,40 @@ export function SignInCard() {
     try {
       const auth = getFirebaseClientAuth();
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
       await finishSignIn(await signInWithPopup(auth, provider));
     } catch (signInError) {
       setError(
-        signInError instanceof Error ? signInError.message : "Google sign-in failed.",
+        signInError instanceof Error
+          ? signInError.message
+          : "Google sign-in failed.",
       );
       setPendingPersona(undefined);
     }
   }
 
-  async function signInAsLocalPersona(persona: (typeof localPersonas)[number]) {
+  async function signInAsLocalPersona(
+    persona: (typeof localPersonas)[number],
+  ) {
     setError(undefined);
     setPendingPersona(persona.id);
 
     try {
       const auth = getFirebaseClientAuth();
       await finishSignIn(
-        await signInWithEmailAndPassword(auth, persona.email, "local-only-password"),
+        await signInWithEmailAndPassword(
+          auth,
+          persona.email,
+          "local-only-password",
+        ),
       );
     } catch (signInError) {
       setError(
-        signInError instanceof Error ? signInError.message : "Local sign-in failed.",
+        signInError instanceof Error
+          ? signInError.message
+          : "Local sign-in failed.",
       );
       setPendingPersona(undefined);
     }
@@ -106,9 +121,11 @@ export function SignInCard() {
         <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--brand)]">
           Fluxon
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Internship Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Internship Dashboard
+        </h1>
         <p className="mt-3 leading-6 text-muted-foreground">
-          Sign in to view the internship information available to you.
+          Sign in using your corporate (@fluxon.com) or university (@ucu.edu.ua) Google account.
         </p>
       </div>
 

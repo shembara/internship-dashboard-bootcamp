@@ -8,23 +8,42 @@ import {
 
 const googleClaims = {
   uid: "firebase-uid",
-  email: "person@example.com",
+  email: "person@fluxon.com",
   email_verified: true,
   name: "Person",
   firebase: { sign_in_provider: "google.com" },
 };
 
 describe("Firebase session claim validation", () => {
-  it("accepts a verified Google identity", () => {
+  it("accepts a verified Google identity with @fluxon.com", () => {
     expect(validateIdentityClaims(googleClaims, false)).toEqual({
       uid: "firebase-uid",
-      email: "person@example.com",
+      email: "person@fluxon.com",
       displayName: "Person",
       emailVerified: true,
     });
   });
 
-  it("accepts a password persona only in development password mode", () => {
+  it("accepts a verified Google identity with @ucu.edu.ua", () => {
+    const claims = { ...googleClaims, email: "student@ucu.edu.ua" };
+    expect(validateIdentityClaims(claims, false)).toEqual({
+      uid: "firebase-uid",
+      email: "student@ucu.edu.ua",
+      displayName: "Person",
+      emailVerified: true,
+    });
+  });
+
+  it("rejects emails from non-whitelisted domains like @gmail.com", () => {
+    const claims = { ...googleClaims, email: "person@gmail.com" };
+    expect(() => validateIdentityClaims(claims, false)).toThrowError(
+      expect.objectContaining<Partial<AuthenticationError>>({
+        code: "UNSUPPORTED_PROVIDER",
+      }),
+    );
+  });
+
+  it("accepts a password persona only in development password mode if domain matches", () => {
     const claims = {
       ...googleClaims,
       firebase: { sign_in_provider: "password" },
