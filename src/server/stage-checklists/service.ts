@@ -29,7 +29,13 @@ const stageValues = internshipStages.map(({ value }) => value) as [
 export const checklistItemMutationSchema = z.object({
   stage: z.enum(stageValues),
   itemKey: z.string().min(1).max(120),
-  completed: z.boolean(),
+  status: z.enum(["todo", "inProgress", "done"]),
+});
+
+export const createChecklistItemSchema = z.object({
+  stage: z.enum(stageValues),
+  label: z.string().trim().min(1).max(160),
+  type: z.enum(["required", "recommended"]),
 });
 
 export const stageAdvancementSchema = z.object({
@@ -38,13 +44,23 @@ export const stageAdvancementSchema = z.object({
 
 const itemProgressSchema = z.object({
   completed: z.boolean(),
+  status: z.enum(["todo", "inProgress", "done"]).optional(),
   completedAt: z.instanceof(Timestamp).optional(),
   completedBy: z.string().min(1).optional(),
+});
+
+const customItemSchema = z.object({
+  key: z.string().min(1).max(120),
+  label: z.string().min(1).max(160),
+  type: z.enum(["required", "recommended"]),
+  createdAt: z.instanceof(Timestamp).optional(),
+  createdBy: z.string().min(1),
 });
 
 const stageProgressSchema = z.object({
   stage: z.enum(stageValues),
   items: z.record(z.string(), itemProgressSchema),
+  customItems: z.array(customItemSchema).default([]),
   startedAt: z.instanceof(Timestamp),
   completedAt: z.instanceof(Timestamp).optional(),
   completedBy: z.string().min(1).optional(),
@@ -59,6 +75,7 @@ type InternshipReference = FirebaseFirestore.DocumentReference;
 type ChecklistAccess = {
   completionActors: ChecklistCompletionActor[];
   canAdvance: boolean;
+  canAddTasks: boolean;
 };
 
 const managerAssignmentSchema = z.object({
@@ -77,7 +94,7 @@ function initialItems(stage: InternshipStage) {
   return Object.fromEntries(
     getStageChecklistTemplate(stage).items.map((item) => [
       item.key,
-      { completed: false },
+      { completed: false, status: "todo" as const },
     ]),
   );
 }
@@ -91,6 +108,7 @@ function initialStageProgress(stage: InternshipStage, actorId: string) {
     createdBy: actorId,
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: actorId,
+    customItems: [],
   };
 }
 
@@ -104,6 +122,7 @@ function initialReadOnlyStageProgress(stage: InternshipStage): StageProgress {
     createdBy: "system",
     updatedAt: now,
     updatedBy: "system",
+    customItems: [],
   };
 }
 
@@ -112,9 +131,10 @@ function parseStageProgress(data: unknown, stage: InternshipStage): StageProgres
   if (progress.stage !== stage)
     throw new Error("Stage progress does not match its document.");
 
-  const allowedKeys = new Set(
-    getStageChecklistTemplate(stage).items.map((item) => item.key),
-  );
+  const allowedKeys = new Set([
+    ...getStageChecklistTemplate(stage).items.map((item) => item.key),
+    ...progress.customItems.map((item) => item.key),
+  ]);
   if (Object.keys(progress.items).some((key) => !allowedKeys.has(key))) {
     throw new Error("Stage progress contains an unknown checklist item.");
   }
@@ -174,6 +194,7 @@ export function resolveChecklistAccess(
       ...(manager ? (["manager"] as const) : []),
     ],
     canAdvance: mentor || manager,
+    canAddTasks: mentor || manager,
   } satisfies ChecklistAccess;
 }
 
@@ -243,21 +264,25 @@ function stageChecklistDto(
 ): StageChecklistDto {
   const template = getStageChecklistTemplate(stage);
   const isStageCompleted = Boolean(progress.completedAt);
-  const items = template.items.map<StageChecklistItemDto>((item) => {
+  const definitions = [
+    ...template.items,
+    ...progress.customItems.map((item) => ({
+      ...item,
+      allowedCompletionActors: ["intern", "mentor", "manager"] as const,
+    })),
+  ];
+  const items = definitions.map<StageChecklistItemDto>((item) => {
     const itemProgress = progress.items[item.key] ?? { completed: false };
+    const status = itemProgress.status ?? (itemProgress.completed ? "done" : "todo");
     return {
       key: item.key,
       label: item.label,
       type: item.type,
-      completed: itemProgress.completed,
+      status,
+      completed: status === "done",
       completedAt: itemProgress.completedAt?.toDate().toISOString(),
       completedBy: itemProgress.completedBy,
-      canComplete:
-        isMutable &&
-        !isStageCompleted &&
-        item.allowedCompletionActors.some((actor) =>
-          access.completionActors.includes(actor),
-        ),
+      canComplete: isMutable && !isStageCompleted && access.completionActors.length > 0,
     };
   });
   const requiredItems = items.filter((item) => item.type === "required");
@@ -268,6 +293,7 @@ function stageChecklistDto(
     stageLabel: internshipStages.find((candidate) => candidate.value === stage)!.label,
     requiredItems,
     recommendedItems: items.filter((item) => item.type === "recommended"),
+    items,
     requiredCompletedCount,
     requiredTotalCount: requiredItems.length,
     readyToComplete:
@@ -275,6 +301,7 @@ function stageChecklistDto(
     isStageCompleted,
     completedAt: progress.completedAt?.toDate().toISOString(),
     canCompleteStage: isMutable && !isStageCompleted && access.canAdvance,
+    canAddTasks: isMutable && !isStageCompleted && access.canAddTasks,
   };
 }
 
@@ -326,11 +353,6 @@ export async function updateChecklistItem(
   if (input.stage !== internship.currentStage)
     throw new Error("This checklist stage is no longer current.");
 
-  const item = getStageChecklistTemplate(input.stage).items.find(
-    (candidate) => candidate.key === input.itemKey,
-  );
-  if (!item) throw new Error("Checklist item not found.");
-
   await adminFirestore.runTransaction(async (transaction) => {
     const current = await transaction.get(internshipRef);
     if (!current.exists) throw new Error("Internship not found.");
@@ -351,26 +373,27 @@ export async function updateChecklistItem(
       ? parseStageProgress(existing.data(), input.stage)
       : undefined;
     assertOpenStage(progress);
-    if (
-      !item.allowedCompletionActors.some((actor) =>
-        access.completionActors.includes(actor),
-      )
-    ) {
+    if (!access.completionActors.length) {
       throw new AuthorizationError(
         "ROLE_REQUIRED",
-        "You cannot complete this checklist item.",
+        "You cannot update tasks for this internship.",
       );
     }
+    const knownKeys = new Set([
+      ...getStageChecklistTemplate(input.stage).items.map((item) => item.key),
+      ...(progress?.customItems ?? []).map((item) => item.key),
+    ]);
+    if (!knownKeys.has(input.itemKey)) throw new Error("Task not found.");
     const items: Record<string, unknown> = {
       ...(progress?.items ?? initialItems(input.stage)),
     };
-    items[input.itemKey] = input.completed
-      ? {
-          completed: true,
-          completedAt: FieldValue.serverTimestamp(),
-          completedBy: userId,
-        }
-      : { completed: false };
+    items[input.itemKey] = {
+      completed: input.status === "done",
+      status: input.status,
+      ...(input.status === "done"
+        ? { completedAt: FieldValue.serverTimestamp(), completedBy: userId }
+        : {}),
+    };
     transaction.set(
       progressRef,
       {
@@ -383,6 +406,77 @@ export async function updateChecklistItem(
     );
   });
 
+  const updated = await internshipRef.get();
+  return getStageChecklist(
+    internshipRef,
+    parseInternshipDocument(updated.data()),
+    userId,
+  );
+}
+
+export async function createChecklistItem(
+  internshipId: string,
+  userId: string,
+  input: z.infer<typeof createChecklistItemSchema>,
+) {
+  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  const key = `custom-${Date.now()}-${input.label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")}`.slice(0, 120);
+  await adminFirestore.runTransaction(async (transaction) => {
+    const current = await transaction.get(internshipRef);
+    if (!current.exists) throw new Error("Internship not found.");
+    const internship = parseInternshipDocument(current.data());
+    assertMutableStatus(internship);
+    if (internship.currentStage !== input.stage) {
+      throw new Error("This checklist stage is no longer current.");
+    }
+    const progressRef = internshipRef.collection("stageProgress").doc(input.stage);
+    const existing = await transaction.get(progressRef);
+    const access = await resolveTransactionAccess(
+      transaction,
+      internshipRef,
+      internship,
+      userId,
+    );
+    if (!access.canAddTasks) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "A mentor or manager is required to add tasks.",
+      );
+    }
+    const progress = existing.exists
+      ? parseStageProgress(existing.data(), input.stage)
+      : undefined;
+    assertOpenStage(progress);
+    if ((progress?.customItems ?? []).some((item) => item.key === key)) {
+      throw new Error("A task with this name already exists.");
+    }
+    transaction.set(
+      progressRef,
+      {
+        ...(progress ?? initialStageProgress(input.stage, userId)),
+        customItems: [
+          ...(progress?.customItems ?? []),
+          {
+            key,
+            label: input.label,
+            type: input.type,
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: userId,
+          },
+        ],
+        items: {
+          ...(progress?.items ?? initialItems(input.stage)),
+          [key]: { completed: false, status: "todo" },
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: userId,
+      },
+      { merge: true },
+    );
+  });
   const updated = await internshipRef.get();
   return getStageChecklist(
     internshipRef,
@@ -426,10 +520,16 @@ export async function completeStage(
     const activeProgress = progress ?? {
       stage: input.stage,
       items: initialItems(input.stage),
+      customItems: [],
     };
-    const requiredComplete = getStageChecklistTemplate(input.stage)
-      .items.filter((item) => item.type === "required")
-      .every((item) => activeProgress.items[item.key]?.completed);
+    const requiredItems = [
+      ...getStageChecklistTemplate(input.stage).items,
+      ...(activeProgress.customItems ?? []),
+    ].filter((item) => item.type === "required");
+    const requiredComplete = requiredItems.every((item) => {
+      const task = activeProgress.items[item.key];
+      return task?.status === "done" || task?.completed;
+    });
     if (!requiredComplete)
       throw new Error("Complete all required checklist items first.");
 

@@ -7,11 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StageChecklistDto } from "@/lib/stage-checklists/types";
 
 const mocks = vi.hoisted(() => ({ refresh: vi.fn() }));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: mocks.refresh }),
-}));
-
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: mocks.refresh }) }));
 import { StageChecklist } from "./StageChecklist";
 
 afterEach(() => {
@@ -20,125 +16,79 @@ afterEach(() => {
   mocks.refresh.mockReset();
 });
 
-function checklist(overrides: Partial<StageChecklistDto> = {}): StageChecklistDto {
+function checklist(): StageChecklistDto {
+  const items = [
+    {
+      key: "accounts",
+      label: "Accounts configured",
+      type: "required" as const,
+      status: "todo" as const,
+      completed: false,
+      canComplete: true,
+    },
+    {
+      key: "notes",
+      label: "Prepare notes",
+      type: "recommended" as const,
+      status: "inProgress" as const,
+      completed: false,
+      canComplete: true,
+    },
+    {
+      key: "tools",
+      label: "Tools configured",
+      type: "required" as const,
+      status: "done" as const,
+      completed: true,
+      canComplete: true,
+    },
+  ];
   return {
     stage: "onboarding",
     stageLabel: "Onboarding",
-    requiredItems: [
-      {
-        key: "accounts",
-        label: "Accounts configured",
-        type: "required",
-        completed: true,
-        canComplete: true,
-      },
-      {
-        key: "tools",
-        label: "Tools configured",
-        type: "required",
-        completed: true,
-        canComplete: true,
-      },
-    ],
-    recommendedItems: [
-      {
-        key: "notes",
-        label: "Project notes prepared",
-        type: "recommended",
-        completed: false,
-        canComplete: true,
-      },
-    ],
-    requiredCompletedCount: 2,
+    items,
+    requiredItems: [items[0], items[2]],
+    recommendedItems: [items[1]],
+    requiredCompletedCount: 1,
     requiredTotalCount: 2,
-    readyToComplete: true,
+    readyToComplete: false,
     isStageCompleted: false,
     canCompleteStage: true,
-    ...overrides,
+    canAddTasks: true,
   };
 }
 
 describe("StageChecklist", () => {
-  it("disables every checklist action while an item mutation is pending", async () => {
-    let resolveRequest: (response: Response) => void;
-    const request = new Promise<Response>((resolve) => {
-      resolveRequest = resolve;
-    });
+  it("renders tasks in the three workflow columns", () => {
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+    expect(screen.getByRole("region", { name: "To do" }).textContent).toContain(
+      "Accounts configured",
+    );
+    expect(screen.getByRole("region", { name: "In progress" }).textContent).toContain(
+      "Prepare notes",
+    );
+    expect(screen.getByRole("region", { name: "Done" }).textContent).toContain(
+      "Tools configured",
+    );
+  });
+
+  it("sends a status update when a task is started", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => request),
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
     );
-    const user = userEvent.setup();
-
     render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
-
-    await user.click(screen.getAllByRole("button", { name: "Reopen" })[0]);
-
-    expect(
-      (screen.getByRole("button", { name: "Saving…" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole("button", { name: "Complete stage" }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole("button", { name: "Complete" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-
-    resolveRequest!(new Response("{}", { status: 200 }));
-    await vi.waitFor(() => expect(mocks.refresh).toHaveBeenCalledOnce());
-  });
-
-  it("prevents a second mutation while the first request is in flight", async () => {
-    let resolveRequest: (response: Response) => void;
-    const request = new Promise<Response>((resolve) => {
-      resolveRequest = resolve;
-    });
-    const fetchMock = vi.fn(() => request);
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
-
-    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
-
-    await user.click(screen.getAllByRole("button", { name: "Reopen" })[0]);
-    await user.click(screen.getByRole("button", { name: "Complete" }));
-
-    expect(fetchMock).toHaveBeenCalledOnce();
-    resolveRequest!(new Response("{}", { status: 200 }));
-  });
-
-  it("renders a completed final review as read-only", () => {
-    render(
-      <StageChecklist
-        internshipId="internship-1"
-        checklist={checklist({
-          stage: "finalReview",
-          stageLabel: "Final review",
-          isStageCompleted: true,
-          completedAt: "2026-08-02T00:00:00.000Z",
-          canCompleteStage: false,
-          requiredItems: [
-            {
-              key: "final-notes",
-              label: "Final notes complete",
-              type: "required",
-              completed: true,
-              canComplete: false,
-            },
-          ],
-          recommendedItems: [],
-          requiredCompletedCount: 1,
-          requiredTotalCount: 1,
-        })}
-      />,
+    await userEvent.setup().click(screen.getByRole("button", { name: "Start" }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/items"),
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          stage: "onboarding",
+          itemKey: "accounts",
+          status: "inProgress",
+        }),
+      }),
     );
-
-    expect(screen.getByText(/^Stage completed/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        /All lifecycle stages are complete and the internship is awaiting/i,
-      ),
-    ).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
   });
 });

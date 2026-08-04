@@ -4,41 +4,113 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import type {
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
 
-function ChecklistSection({
-  title,
-  items,
-  renderAction,
+const columns = [
+  { status: "todo", title: "To do" },
+  { status: "inProgress", title: "In progress" },
+  { status: "done", title: "Done" },
+] as const;
+
+function TaskCard({
+  item,
+  onStatusChange,
+  pending,
 }: {
-  title: string;
-  items: StageChecklistItemDto[];
-  renderAction: (item: StageChecklistItemDto) => React.ReactNode;
+  item: StageChecklistItemDto;
+  onStatusChange: (status: StageChecklistItemDto["status"]) => void;
+  pending: boolean;
 }) {
+  const nextStatus =
+    item.status === "todo"
+      ? "inProgress"
+      : item.status === "inProgress"
+        ? "done"
+        : "todo";
+  const buttonLabel =
+    item.status === "todo"
+      ? "Start"
+      : item.status === "inProgress"
+        ? "Mark done"
+        : "Reopen";
   return (
-    <section className="space-y-2">
-      <h3 className="font-semibold">{title}</h3>
-      <ul className="space-y-2">
-        {items.map((item) => (
-          <li
-            key={item.key}
-            className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
-          >
-            <span>
-              {item.label}
-              <span className="text-muted-foreground">
-                {" "}
-                · {item.completed ? "Completed" : "Not completed"}
-              </span>
-            </span>
-            {renderAction(item)}
-          </li>
-        ))}
-      </ul>
-    </section>
+    <article className="rounded-xl border bg-card p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium leading-snug">{item.label}</p>
+        <span
+          className={
+            item.type === "required"
+              ? "shrink-0 rounded-full bg-[var(--brand-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--brand-strong)]"
+              : "shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
+          }
+        >
+          {item.type === "required" ? "Required" : "Recommended"}
+        </span>
+      </div>
+      {item.canComplete ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="mt-3 w-full"
+          disabled={pending}
+          onClick={() => onStatusChange(nextStatus)}
+        >
+          {pending ? "Saving…" : buttonLabel}
+        </Button>
+      ) : null}
+    </article>
+  );
+}
+
+function AddTaskForm({
+  onSubmit,
+  pending,
+  close,
+}: {
+  onSubmit: (label: string, type: "required" | "recommended") => Promise<boolean>;
+  pending: boolean;
+  close: () => void;
+}) {
+  const [label, setLabel] = useState("");
+  const [type, setType] = useState<"required" | "recommended">("required");
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (await onSubmit(label, type)) close();
+      }}
+    >
+      <label className="block space-y-1.5 text-sm font-medium">
+        Task name
+        <input
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={label}
+          onChange={(event) => setLabel(event.target.value)}
+          required
+          maxLength={160}
+        />
+      </label>
+      <label className="block space-y-1.5 text-sm font-medium">
+        Type
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={type}
+          onChange={(event) => setType(event.target.value as typeof type)}
+        >
+          <option value="required">Required</option>
+          <option value="recommended">Recommended</option>
+        </select>
+      </label>
+      <Button type="submit" disabled={pending || !label.trim()}>
+        {pending ? "Adding…" : "Add task"}
+      </Button>
+    </form>
   );
 }
 
@@ -63,53 +135,73 @@ export function StageChecklist({
   }, [checklist]);
 
   async function mutate(url: string, body: object, key: string) {
-    if (pending) return;
+    if (pending) return false;
     setPending(key);
     setError("");
     try {
       const response = await fetch(url, {
-        method: key === "stage" ? "POST" : "PATCH",
+        method: key === "stage" || key === "add" ? "POST" : "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        const body = (await response.json().catch(() => undefined)) as
+        const data = (await response.json().catch(() => undefined)) as
           { error?: string } | undefined;
-        throw new Error(body?.error ?? "Could not update the checklist.");
+        throw new Error(data?.error ?? "Could not update the task board.");
       }
       router.refresh();
+      return true;
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Could not update the checklist.",
+        cause instanceof Error ? cause.message : "Could not update the task board.",
       );
       setPending(undefined);
+      return false;
     }
   }
+
   return (
     <section
       className="mt-6 space-y-5 border-t pt-5"
       aria-labelledby="stage-checklist-heading"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="stage-checklist-heading" className="text-lg font-semibold">
-            {checklist.stageLabel} checklist
+            {checklist.stageLabel} tasks
           </h2>
           <p className="text-sm text-muted-foreground">
             {checklist.requiredCompletedCount} of {checklist.requiredTotalCount}{" "}
-            required tasks completed
+            required tasks done
           </p>
-          {checklist.isStageCompleted ? (
-            <p className="mt-1 text-sm font-medium text-[var(--brand-strong)]">
-              Stage completed
-              {checklist.stage === "finalReview"
-                ? ". All lifecycle stages are complete and the internship is awaiting a manager status decision."
-                : "."}
-            </p>
-          ) : null}
         </div>
-        {checklist.canCompleteStage ? (
-          <div className="space-y-1 text-right">
+        <div className="flex flex-wrap gap-2">
+          {checklist.canAddTasks ? (
+            <Modal
+              trigger={
+                <Button type="button" variant="outline">
+                  Add task
+                </Button>
+              }
+              title="Add a task"
+              description="Add a task for this stage."
+            >
+              {(close) => (
+                <AddTaskForm
+                  close={close}
+                  pending={isPending}
+                  onSubmit={(label, type) =>
+                    mutate(
+                      `/api/internships/${internshipId}/stage-checklist/tasks`,
+                      { stage: checklist.stage, label, type },
+                      "add",
+                    )
+                  }
+                />
+              )}
+            </Modal>
+          ) : null}
+          {checklist.canCompleteStage ? (
             <Button
               type="button"
               disabled={!checklist.readyToComplete || isPending}
@@ -121,89 +213,51 @@ export function StageChecklist({
                 )
               }
             >
-              {pending === "stage" ? "Completing…" : "Complete stage"}
+              {pending === "stage" ? "Approving…" : "Approve next stage"}
             </Button>
-            {!checklist.readyToComplete ? (
-              <p className="text-xs text-muted-foreground">
-                Complete all required tasks to advance.
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-      <div
-        className="h-2 overflow-hidden rounded-full bg-muted"
-        aria-label={`${checklist.requiredCompletedCount} of ${checklist.requiredTotalCount} required tasks completed`}
-      >
-        <div
-          className="h-full bg-[var(--brand)]"
-          style={{
-            width: `${(checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100}%`,
-          }}
-        />
+      {!checklist.readyToComplete && checklist.canCompleteStage ? (
+        <p className="text-sm text-muted-foreground">
+          All required tasks must be in Done before the next stage can be approved.
+        </p>
+      ) : null}
+      <div className="grid gap-4 md:grid-cols-3">
+        {columns.map((column) => {
+          const items = checklist.items.filter((item) => item.status === column.status);
+          return (
+            <section
+              key={column.status}
+              className="min-h-48 rounded-xl border bg-muted/30 p-3"
+              aria-label={column.title}
+            >
+              <h3 className="mb-3 font-semibold">
+                {column.title}{" "}
+                <span className="text-sm font-normal text-muted-foreground">
+                  {items.length}
+                </span>
+              </h3>
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <TaskCard
+                    key={item.key}
+                    item={item}
+                    pending={pending === item.key}
+                    onStatusChange={(status) =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/items`,
+                        { stage: checklist.stage, itemKey: item.key, status },
+                        item.key,
+                      )
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
-      <ChecklistSection
-        title="Required"
-        items={checklist.requiredItems}
-        renderAction={(item) =>
-          item.canComplete ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                mutate(
-                  `/api/internships/${internshipId}/stage-checklist/items`,
-                  {
-                    stage: checklist.stage,
-                    itemKey: item.key,
-                    completed: !item.completed,
-                  },
-                  item.key,
-                )
-              }
-            >
-              {pending === item.key
-                ? "Saving…"
-                : item.completed
-                  ? "Reopen"
-                  : "Complete"}
-            </Button>
-          ) : null
-        }
-      />
-      <ChecklistSection
-        title="Recommended"
-        items={checklist.recommendedItems}
-        renderAction={(item) =>
-          item.canComplete ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                mutate(
-                  `/api/internships/${internshipId}/stage-checklist/items`,
-                  {
-                    stage: checklist.stage,
-                    itemKey: item.key,
-                    completed: !item.completed,
-                  },
-                  item.key,
-                )
-              }
-            >
-              {pending === item.key
-                ? "Saving…"
-                : item.completed
-                  ? "Reopen"
-                  : "Complete"}
-            </Button>
-          ) : null
-        }
-      />
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}
