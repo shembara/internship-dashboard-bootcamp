@@ -3,21 +3,13 @@
 import { useState } from "react";
 import type { GuestDashboardDto } from "@/lib/guest-dashboard/types";
 import { internshipStages, internshipStatuses } from "@/lib/internships/types";
+import { formatDate } from "@/lib/utils";
 
 function label<T extends { value: string; label: string }>(
   items: readonly T[],
   value: string,
 ) {
   return items.find((item) => item.value === value)?.label ?? value;
-}
-
-function dateLabel(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(`${value.slice(0, 10)}T12:00:00.000Z`));
 }
 
 export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) {
@@ -57,7 +49,7 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                 <div>
                   <h2 className="text-lg font-semibold">{item.internName}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Started {dateLabel(item.startsAt)}
+                    Started {formatDate(item.startsAt)}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Project: {item.project ?? "Unassigned"}
@@ -108,7 +100,7 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                       <ul className="mt-3 space-y-2 text-sm">
                         {item.timeline.map((event) => (
                           <li key={event.id}>
-                            {dateLabel(event.occurredAt)} · {event.title}
+                            {formatDate(event.occurredAt)} · {event.title}
                             {event.description ? ` · ${event.description}` : ""}
                           </li>
                         ))}
@@ -153,7 +145,7 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                         {item.achievements.map((achievement) => (
                           <li key={achievement.id}>
                             {achievement.title} · {achievement.category} ·{" "}
-                            {dateLabel(achievement.achievedOn)}
+                            {formatDate(achievement.achievedOn)}
                           </li>
                         ))}
                       </ul>
