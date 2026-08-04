@@ -56,7 +56,7 @@ const personas = [
   },
   {
     id: "mentor2",
-    uid: "development-mentor",
+    uid: "development-mentor2",
     email: "mentor@fluxon.com",
     displayName: "Sasha Mentor",
     roles: ["teammate"],
@@ -66,6 +66,13 @@ const personas = [
     uid: "development-intern",
     email: "intern@example.com",
     displayName: "Indira Intern",
+    roles: ["intern"],
+  },
+  {
+    id: "intern2",
+    uid: "development-intern2",
+    email: "intern@fluxon.com",
+    displayName: "Sasha Intern",
     roles: ["intern"],
   },
   {
