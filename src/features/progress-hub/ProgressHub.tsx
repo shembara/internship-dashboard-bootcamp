@@ -202,7 +202,6 @@ function CheckInForm({
     areasToImprove: checkIn?.areasToImprove ?? "",
     supportNeeded: checkIn?.supportNeeded ?? "",
     nextWeekFocus: checkIn?.nextWeekFocus ?? "",
-    privateMentorNote: "",
   });
   const setField = (key: string) => (value: string) =>
     setValues((current) => ({ ...current, [key]: value }));
@@ -244,13 +243,11 @@ function CheckInForm({
           onChange={setField("nextWeekFocus")}
           disabled={!editable}
         />
-        <Field
-          label="Private mentor note"
-          value={values.privateMentorNote}
-          onChange={setField("privateMentorNote")}
-          disabled={!editable}
-        />
       </div>
+      <p className="text-xs text-muted-foreground">
+        Need to keep a private note? Use the mentor-private notes section below — this
+        check-in is shared with the manager.
+      </p>
       {checkIn ? (
         <p className="text-xs text-muted-foreground">
           Original author: {checkIn.createdBy} · Last updated by: {checkIn.updatedBy}

@@ -56,6 +56,7 @@ describe("Progress Hub authorization", () => {
   it("requires the teammate role and a current mentor responsibility", () => {
     const currentMentor = {
       teammateUserId: "mentor-1",
+      teamId: "team-1",
       responsibilities: ["mentor"],
       startsAt: Timestamp.fromMillis(0),
     };
@@ -116,36 +117,21 @@ describe("Progress Hub authorization", () => {
 });
 
 describe("Progress Hub weekly state transitions", () => {
-  it("rejects a submitted reflection moving back to draft", () => {
+  it("locks a submitted reflection from any further changes", () => {
     expect(() =>
-      assertReflectionTransition(
-        { state: "submitted", submittedAt: now } as never,
-        "draft",
-      ),
-    ).toThrow("cannot be moved back to draft");
+      assertReflectionTransition({ state: "submitted", submittedAt: now } as never),
+    ).toThrow("read-only");
     expect(() =>
-      assertReflectionTransition(
-        { state: "draft", submittedAt: now } as never,
-        "draft",
-      ),
+      assertReflectionTransition({ state: "draft", submittedAt: now } as never),
     ).toThrow("cannot have submission metadata");
-    expect(() =>
-      assertReflectionTransition(
-        { state: "submitted", submittedAt: now } as never,
-        "submitted",
-      ),
-    ).not.toThrow();
   });
 
-  it("rejects a shared check-in moving back to draft", () => {
+  it("locks a shared check-in from any further changes", () => {
     expect(() =>
-      assertCheckInTransition({ state: "shared", sharedAt: now } as never, "draft"),
-    ).toThrow("cannot be moved back to draft");
+      assertCheckInTransition({ state: "shared", sharedAt: now } as never),
+    ).toThrow("read-only");
     expect(() =>
-      assertCheckInTransition({ state: "draft", sharedAt: now } as never, "draft"),
+      assertCheckInTransition({ state: "draft", sharedAt: now } as never),
     ).toThrow("cannot have sharing metadata");
-    expect(() =>
-      assertCheckInTransition({ state: "shared", sharedAt: now } as never, "shared"),
-    ).not.toThrow();
   });
 });

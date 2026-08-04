@@ -138,7 +138,11 @@ export function StageChecklist({
         <div
           className="h-full bg-[var(--brand)]"
           style={{
-            width: `${(checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100}%`,
+            width: `${
+              checklist.requiredTotalCount
+                ? (checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100
+                : 100
+            }%`,
           }}
         />
       </div>

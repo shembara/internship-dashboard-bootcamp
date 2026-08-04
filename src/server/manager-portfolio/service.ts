@@ -8,6 +8,9 @@ import {
   isCurrentManagerAssignment,
   isOperationalInternshipStatus,
   isCurrent,
+  managerAssignmentDocumentSchema as managerAssignmentSchema,
+  placementDocumentSchema as placementSchema,
+  teammateAssignmentDocumentSchema as teammateAssignmentSchema,
   type DateRange,
 } from "@/server/assignments/domain";
 import {
@@ -18,7 +21,10 @@ import { adminFirestore } from "@/server/firebase/admin";
 import { recordFirestoreReadPath } from "@/server/firebase/read-diagnostics";
 import { parseInternshipDocument } from "@/server/internships/repository";
 import { getManagerProgressHub } from "@/server/progress-hub/service";
-import { getStageChecklist } from "@/server/stage-checklists/service";
+import {
+  getStageChecklist,
+  stageProgressSchema,
+} from "@/server/stage-checklists/service";
 import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
 import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { appUserSchema } from "@/server/users/app-user";
@@ -115,34 +121,12 @@ export const removeManagerAssignmentInputSchema = z.object({
   replacementManagerUserId: z.string().min(1).optional(),
 });
 
-const managerAssignmentSchema = z.object({
-  userId: z.string().min(1),
-  startsAt: z.instanceof(Timestamp).optional(),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
-const teammateAssignmentSchema = z.object({
-  teammateUserId: z.string().min(1),
-  teamId: z.string().min(1),
-  responsibilities: z.array(z.string()),
-  startsAt: z.instanceof(Timestamp),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
-const placementSchema = z.object({
-  teamId: z.string().min(1),
-  startsAt: z.instanceof(Timestamp),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
 const statusHistorySchema = z.object({
   previousStatus: z.enum(statusValues),
   newStatus: z.enum(statusValues),
   changedAt: z.instanceof(Timestamp),
   changedBy: z.string().min(1),
   reason: z.string().optional(),
-});
-const stageProgressSchema = z.object({
-  stage: z.enum(stageValues),
-  completedAt: z.instanceof(Timestamp).optional(),
-  items: z.record(z.string(), z.object({ completed: z.boolean() })),
 });
 
 function timestamp(value: Timestamp | undefined) {
