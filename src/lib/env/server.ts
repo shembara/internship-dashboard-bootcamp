@@ -16,9 +16,17 @@ export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
 
 export function getServerEnvironment(): ServerEnvironment {
   const publicProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const configuredServerProjectId =
+    process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+
+  if (process.env.NODE_ENV === "production" && !configuredServerProjectId) {
+    throw new Error(
+      "FIREBASE_PROJECT_ID or GOOGLE_CLOUD_PROJECT is required in production.",
+    );
+  }
+
   const projectId =
-    process.env.FIREBASE_PROJECT_ID ??
-    process.env.GOOGLE_CLOUD_PROJECT ??
+    configuredServerProjectId ??
     publicProjectId ??
     "fluxon-internships-development";
   const authenticationMode =
@@ -30,7 +38,7 @@ export function getServerEnvironment(): ServerEnvironment {
     process.env.FIREBASE_AUTHENTICATION_MODE &&
     process.env.NEXT_PUBLIC_AUTHENTICATION_MODE &&
     process.env.FIREBASE_AUTHENTICATION_MODE !==
-      process.env.NEXT_PUBLIC_AUTHENTICATION_MODE
+    process.env.NEXT_PUBLIC_AUTHENTICATION_MODE
   ) {
     throw new Error("Client and server authentication modes must match.");
   }
