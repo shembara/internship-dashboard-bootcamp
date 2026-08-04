@@ -13,7 +13,7 @@ export const appUserSchema = z.object({
   email: z.string().email(),
   displayName: z.string().min(1),
   active: z.boolean(),
-  roles: z.array(z.enum(applicationRoles)),
+  roles: z.array(z.enum(applicationRoles)).min(1),
   identityState: z.enum(["pending", "linked"]),
   identities: z.array(identitySchema).optional().default([]),
   createdAt: z

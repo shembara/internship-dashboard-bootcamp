@@ -20,19 +20,19 @@ const localPersonas = [
     email: "manager@fluxon.com",
   },
   {
-    id: "mentor",
-    name: "Morgan Mentor",
-    email: "mentor@example.com",
+    id: "mentor2",
+    name: "Sasga Mentor",
+    email: "mentor@fluxon.com",
   },
   {
     id: "intern",
-    name: "Indira Intern",
-    email: "intern@example.com",
+    name: "Sasha Intern",
+    email: "intern@fluxon.com",
   },
   {
     id: "guest",
-    name: "Gina Guest",
-    email: "guest@example.com",
+    name: "Sasha Guest",
+    email: "guest@fluxon.com",
   },
 ] as const;
 
