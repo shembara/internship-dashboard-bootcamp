@@ -11,6 +11,12 @@ function label<T extends { value: string; label: string }>(
   return items.find((item) => item.value === value)?.label ?? value;
 }
 
+function dateLabel(value: string) {
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium" }).format(
+    new Date(value),
+  );
+}
+
 export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) {
   const [open, setOpen] = useState<string>();
   return (
@@ -76,7 +82,9 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                   </div>
                   <div>
                     <dt className="text-muted-foreground">Day of internship</dt>
-                    <dd>Day {item.dayOfInternship}</dd>
+                    <dd>
+                      Day {item.dayOfInternship} · {dateLabel(item.dayOfInternshipDate)}
+                    </dd>
                   </div>
                 </dl>
                 <button
@@ -98,6 +106,7 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                           <li key={event.id}>
                             {new Date(event.occurredAt).toLocaleDateString()} ·{" "}
                             {event.title}
+                            {event.description ? ` · ${event.description}` : ""}
                           </li>
                         ))}
                       </ul>

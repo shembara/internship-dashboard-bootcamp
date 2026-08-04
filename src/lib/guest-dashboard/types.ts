@@ -7,12 +7,18 @@ export type GuestDashboardItem = {
   currentStage: InternshipStage;
   startsAt: string;
   dayOfInternship: number;
+  dayOfInternshipDate: string;
   project?: string;
   mentors: string[];
   managers: string[];
   requiredCompletedCount: number;
   requiredTotalCount: number;
-  timeline: Array<{ id: string; occurredAt: string; title: string }>;
+  timeline: Array<{
+    id: string;
+    occurredAt: string;
+    title: string;
+    description?: string;
+  }>;
   mentorFeedback?: {
     progressSummary: string;
     strengthsObserved: string;

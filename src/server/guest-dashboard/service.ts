@@ -6,6 +6,8 @@ import type {
   GuestDashboardDto,
   GuestDashboardItem,
 } from "@/lib/guest-dashboard/types";
+import { internshipStages } from "@/lib/internships/types";
+import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
 import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/repository";
@@ -23,6 +25,32 @@ function current(value: { startsAt?: Timestamp; endsAt?: Timestamp }) {
   );
 }
 
+function dateInApplicationTimeZone(value: Timestamp) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: progressHubTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value.toDate());
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  ) as Record<"year" | "month" | "day", string>;
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function inclusiveCalendarDayCount(startsAt: Timestamp, endsAt: Timestamp) {
+  return Math.max(
+    1,
+    Math.round(
+      (Date.parse(`${dateInApplicationTimeZone(endsAt)}T00:00:00.000Z`) -
+        Date.parse(`${dateInApplicationTimeZone(startsAt)}T00:00:00.000Z`)) /
+        86_400_000,
+    ) + 1,
+  );
+}
+
 export async function getGuestDashboard(): Promise<GuestDashboardDto> {
   const internships = await adminFirestore.collection("internships").get();
   const items = await Promise.all(
@@ -35,6 +63,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         teammates,
         managers,
         stage,
+        stageProgress,
         checkIns,
         achievements,
         history,
@@ -44,9 +73,10 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         ref.collection("teammateAssignments").get(),
         ref.collection("managerAssignments").get(),
         ref.collection("stageProgress").doc(internship.currentStage).get(),
+        ref.collection("stageProgress").limit(internshipStages.length).get(),
         ref.collection("mentorCheckIns").orderBy("weekKey", "desc").limit(16).get(),
-        ref.collection("achievements").orderBy("achievedOn", "desc").limit(20).get(),
-        ref.collection("statusHistory").orderBy("changedAt", "desc").limit(30).get(),
+        ref.collection("achievements").orderBy("achievedOn", "desc").limit(100).get(),
+        ref.collection("statusHistory").orderBy("changedAt", "desc").limit(50).get(),
       ]);
       const mentorIds = teammates.docs
         .map((entry) => entry.data())
@@ -76,6 +106,10 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
       const feedback = checkIns.docs
         .map((entry) => entry.data())
         .find((entry) => entry.state === "shared");
+      const dayOfInternshipDate =
+        internship.status === "completed" && internship.endsAt
+          ? internship.endsAt
+          : Timestamp.now();
       return {
         id: document.id,
         internName:
@@ -83,22 +117,70 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         status: internship.status,
         currentStage: internship.currentStage,
         startsAt: internship.startsAt.toDate().toISOString(),
-        dayOfInternship: Math.max(
-          1,
-          Math.floor((Date.now() - internship.startsAt.toMillis()) / 86_400_000) + 1,
+        dayOfInternship: inclusiveCalendarDayCount(
+          internship.startsAt,
+          dayOfInternshipDate,
         ),
+        dayOfInternshipDate: dayOfInternshipDate.toDate().toISOString(),
         project: team?.data()?.title as string | undefined,
         mentors: mentorIds.map((id) => names.get(id) ?? "Unknown mentor"),
         managers: managerIds.map((id) => names.get(id) ?? "Unknown manager"),
         requiredCompletedCount: completed,
         requiredTotalCount: required.length,
-        timeline: history.docs.flatMap((entry) => {
-          const data = entry.data();
-          const occurredAt = iso(data.changedAt);
-          return occurredAt && typeof data.newStatus === "string"
-            ? [{ id: entry.id, occurredAt, title: `Internship ${data.newStatus}` }]
-            : [];
-        }),
+        timeline: [
+          ...(() => {
+            const occurredAt = iso(document.data().createdAt);
+            return occurredAt
+              ? [{ id: "internship:created", occurredAt, title: "Internship created" }]
+              : [];
+          })(),
+          ...history.docs.flatMap((entry) => {
+            const data = entry.data();
+            const occurredAt = iso(data.changedAt);
+            return occurredAt && typeof data.newStatus === "string"
+              ? [
+                  {
+                    id: `status:${entry.id}`,
+                    occurredAt,
+                    title: `Internship ${data.newStatus}`,
+                  },
+                ]
+              : [];
+          }),
+          ...stageProgress.docs.flatMap((entry) => {
+            const data = entry.data();
+            const occurredAt = iso(data.completedAt);
+            return occurredAt
+              ? [
+                  {
+                    id: `stage:${entry.id}`,
+                    occurredAt,
+                    title: `${entry.id} stage completed`,
+                  },
+                ]
+              : [];
+          }),
+          ...achievements.docs.flatMap((entry) => {
+            const data = entry.data();
+            return !data.archivedAt &&
+              typeof data.title === "string" &&
+              typeof data.achievedOn === "string"
+              ? [
+                  {
+                    id: `achievement:${entry.id}`,
+                    occurredAt: `${data.achievedOn}T00:00:00.000Z`,
+                    title: data.title,
+                    ...(typeof data.category === "string"
+                      ? { description: data.category }
+                      : {}),
+                  },
+                ]
+              : [];
+          }),
+        ].sort(
+          (a, b) =>
+            b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id),
+        ),
         mentorFeedback: feedback
           ? {
               progressSummary: feedback.progressSummary,
