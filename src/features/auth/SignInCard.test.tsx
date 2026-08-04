@@ -17,7 +17,7 @@ describe("SignInCard", () => {
     expect(markup).toContain("Authenticate as guest");
     expect(markup).toContain("manager@fluxon.com");
     expect(markup).toContain("mentor@fluxon.com");
-    expect(markup).toContain("intern@ucu.edu.ua");
-    expect(markup).toContain("guest@ucu.edu.ua");
+    expect(markup).toContain("intern@fluxon.com");
+    expect(markup).toContain("guest@fluxon.com");
   });
 });
