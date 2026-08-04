@@ -13,6 +13,7 @@ import {
 } from "@/lib/internships/types";
 import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
+import { isCurrentManagerAssignment } from "@/server/assignments/domain";
 import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/repository";
 
@@ -148,7 +149,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         .map((entry) => entry.teammateUserId as string);
       const managerIds = managers.docs
         .map((entry) => entry.data())
-        .filter(current)
+        .filter((entry) => isCurrentManagerAssignment(entry))
         .map((entry) => entry.userId as string);
       const userReferences = [...new Set([...mentorIds, ...managerIds])].map((id) =>
         adminFirestore.collection("users").doc(id),
