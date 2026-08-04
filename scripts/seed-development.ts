@@ -41,6 +41,13 @@ const personas = [
     roles: ["manager"],
   },
   {
+    id: "manager2",
+    uid: "development-manager2",
+    email: "manager@fluxon.com",
+    displayName: "Sasha Manager",
+    roles: ["manager"],
+  },
+  {
     id: "mentor",
     uid: "development-mentor",
     email: "mentor@example.com",
@@ -48,10 +55,24 @@ const personas = [
     roles: ["teammate"],
   },
   {
+    id: "mentor2",
+    uid: "development-mentor2",
+    email: "mentor@fluxon.com",
+    displayName: "Sasha Mentor",
+    roles: ["teammate"],
+  },
+  {
     id: "intern",
     uid: "development-intern",
     email: "intern@example.com",
     displayName: "Indira Intern",
+    roles: ["intern"],
+  },
+  {
+    id: "intern2",
+    uid: "development-intern2",
+    email: "intern@fluxon.com",
+    displayName: "Sasha Intern",
     roles: ["intern"],
   },
   {
@@ -529,9 +550,9 @@ for (const scenario of scenarioInternships) {
         startedAt: startsAt,
         ...(completeRequired
           ? {
-              completedAt: previousWeekStartTimestamp,
-              completedBy: "development-manager",
-            }
+            completedAt: previousWeekStartTimestamp,
+            completedBy: "development-manager",
+          }
           : {}),
         createdAt: FieldValue.serverTimestamp(),
         createdBy: "development-manager",

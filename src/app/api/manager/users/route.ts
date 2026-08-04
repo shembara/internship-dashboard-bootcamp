@@ -12,10 +12,8 @@ import { findAppUserByEmail, normalizeEmail } from "@/server/repositories/app-us
 const requestSchema = z.object({
   email: z.string().email(),
   roles: z
-    .array(z.enum(["intern", "teammate"]))
-    .min(1)
-    .max(2)
-    .refine((roles) => new Set(roles).size === roles.length, "Roles must be unique."),
+    .array(z.enum(["manager", "intern", "teammate"]))
+    .length(1, "Exactly one role must be selected."),
 });
 
 export async function POST(request: Request) {

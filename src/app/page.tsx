@@ -10,9 +10,6 @@ export default async function HomePage() {
   }
 
   const context = await getAuthorizationContext(user);
-  if (context.access === "guest") {
-    redirect("/guest");
-  }
   if (context.access !== "appUser") {
     redirect("/forbidden");
   }
