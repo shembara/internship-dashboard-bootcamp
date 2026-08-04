@@ -13,9 +13,7 @@ const requestSchema = z.object({
   email: z.string().email(),
   roles: z
     .array(z.enum(["manager", "intern", "teammate"]))
-    .min(1)
-    .max(3)
-    .refine((roles) => new Set(roles).size === roles.length, "Roles must be unique."),
+    .length(1, "Exactly one role must be selected."),
 });
 
 export async function POST(request: Request) {

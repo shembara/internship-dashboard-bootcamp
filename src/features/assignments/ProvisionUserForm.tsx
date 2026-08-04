@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/Button";
 export function ProvisionUserForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [roles, setRoles] = useState<string[]>([]);
+  const [role, setRole] = useState<string>("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (roles.length === 0) {
-      setError("Please select at least one application role.");
+    if (!role) {
+      setError("Please select an application role.");
       return;
     }
     setPending(true);
@@ -25,7 +25,7 @@ export function ProvisionUserForm() {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         email,
-        roles,
+        roles: [role],
       }),
     });
     const body = await response.json();
@@ -35,7 +35,7 @@ export function ProvisionUserForm() {
       return;
     }
     setEmail("");
-    setRoles([]);
+    setRole("");
     setPending(false);
     router.refresh();
   }
@@ -58,52 +58,34 @@ export function ProvisionUserForm() {
         />
       </label>
       <fieldset className="flex flex-wrap gap-4 text-sm">
-        <legend className="mb-2 font-medium">Application access</legend>
-        <label className="flex items-center gap-2">
+        <legend className="mb-2 font-medium">Application role</legend>
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
-            name="roles"
-            type="checkbox"
+            name="role"
+            type="radio"
             value="manager"
-            checked={roles.includes("manager")}
-            onChange={(event) =>
-              setRoles((current) =>
-                event.target.checked
-                  ? [...current, "manager"]
-                  : current.filter((role) => role !== "manager"),
-              )
-            }
+            checked={role === "manager"}
+            onChange={(event) => setRole(event.target.value)}
           />{" "}
           Manager
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
-            name="roles"
-            type="checkbox"
+            name="role"
+            type="radio"
             value="intern"
-            checked={roles.includes("intern")}
-            onChange={(event) =>
-              setRoles((current) =>
-                event.target.checked
-                  ? [...current, "intern"]
-                  : current.filter((role) => role !== "intern"),
-              )
-            }
+            checked={role === "intern"}
+            onChange={(event) => setRole(event.target.value)}
           />{" "}
           Intern
         </label>
-        <label className="flex items-center gap-2">
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
-            name="roles"
-            type="checkbox"
+            name="role"
+            type="radio"
             value="teammate"
-            checked={roles.includes("teammate")}
-            onChange={(event) =>
-              setRoles((current) =>
-                event.target.checked
-                  ? [...current, "teammate"]
-                  : current.filter((role) => role !== "teammate"),
-              )
-            }
+            checked={role === "teammate"}
+            onChange={(event) => setRole(event.target.value)}
           />{" "}
           Teammate / Mentor
         </label>

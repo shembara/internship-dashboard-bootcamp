@@ -55,6 +55,13 @@ const personas = [
     roles: ["teammate"],
   },
   {
+    id: "mentor2",
+    uid: "development-mentor",
+    email: "mentor@fluxon.com",
+    displayName: "Sasha Mentor",
+    roles: ["teammate"],
+  },
+  {
     id: "intern",
     uid: "development-intern",
     email: "intern@example.com",
