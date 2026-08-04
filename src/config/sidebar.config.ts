@@ -15,7 +15,6 @@ import {
   Lock,
   MessageSquareText,
   NotebookPen,
-  Search,
   Settings,
   ShieldCheck,
   UserCheck,
@@ -86,44 +85,45 @@ export const internSidebarConfig: RoleSidebarConfig = {
 
 export const managerSidebarConfig: RoleSidebarConfig = {
   label: "Manager workspace",
-  general: [
+  general: [],
+  workspace: [
     {
       label: "Overview & Lifecycle",
       icon: FolderOpen,
       items: [
-        { label: "Internship lifecycle", href: "/manager#internship-lifecycle", icon: Clock3 },
-        { label: "Stage checklist", href: "/manager#stage-checklist", icon: CheckSquare },
-        { label: "Internship status", href: "/manager#internship-status", icon: Activity },
+        { label: "Internship lifecycle", href: "/manager/internships", icon: Clock3 },
+        { label: "Stage checklist", href: "/manager/internships", icon: CheckSquare },
+        { label: "Internship status", href: "/manager/internships", icon: Activity },
       ],
     },
     {
       label: "Progress & Reflection",
       icon: LayoutDashboard,
       items: [
-        { label: "Weekly overview", href: "/manager#weekly-overview", icon: FileText },
-        { label: "Intern reflections", href: "/manager#intern-reflections", icon: MessageSquareText },
-        { label: "Achievements", href: "/manager#achievements", icon: Award },
-        { label: "Internship timeline", href: "/manager#internship-timeline", icon: Clock3 },
-        { label: "History", href: "/manager#history", icon: History },
+        { label: "Weekly overview", href: "weekly-overview", icon: FileText },
+        { label: "Intern reflections", href: "intern-reflections", icon: MessageSquareText },
+        { label: "Achievements", href: "/manager/internships", icon: Award },
+        { label: "Internship timeline", href: "/manager/internships", icon: Clock3 },
+        { label: "History", href: "history", icon: History },
       ],
     },
     {
       label: "1:1 & Collaboration",
       icon: Handshake,
       items: [
-        { label: "Shared 1:1 agenda", href: "/manager#shared-one-on-one-agenda", icon: Users },
-        { label: "Shared notes", href: "/manager#shared-notes", icon: FileText },
-        { label: "Mentor-private notes", href: "/manager#mentor-private-notes", icon: ShieldCheck },
-        { label: "Action items", href: "/manager#action-items", icon: CheckSquare },
-        { label: "Feedback cycles", href: "/manager#feedback-cycles", icon: MessageSquareText },
+        { label: "Shared 1:1 agenda", href: "shared-one-on-one-agenda", icon: Users },
+        { label: "Shared notes", href: "shared-notes", icon: FileText },
+        { label: "Mentor-private notes", href: "mentor-private-notes", icon: ShieldCheck },
+        { label: "Action items", href: "action-items", icon: CheckSquare },
+        { label: "Feedback cycles", href: "/manager/internships", icon: MessageSquareText },
       ],
     },
     {
       label: "Team & Administration",
       icon: Users,
       items: [
-        { label: "Assignments", href: "/manager#assignments", icon: UserCheck },
-        { label: "Manage assignments", href: "/manager#manage-assignments", icon: Settings },
+        { label: "Assignments", href: "/manager/internships", icon: UserCheck },
+        { label: "Manage assignments", href: "/manager/people", icon: Settings },
       ],
     },
   ],

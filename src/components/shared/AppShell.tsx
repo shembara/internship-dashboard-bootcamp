@@ -1,9 +1,8 @@
 import Link from "next/link";
 import type { AuthorizationContext } from "@/server/authorization/context";
 
-import { Sidebar } from "@/components/shared/Sidebar";
+import { AppShellBody } from "@/components/shared/AppShellBody";
 import { SignOutButton } from "@/features/auth/SignOutButton";
-import { cn } from "@/lib/utils";
 
 export function AppShell({
   children,
@@ -18,9 +17,6 @@ export function AppShell({
       : (context.user.displayName ?? context.user.email);
 
   const roles = context.access === "appUser" ? context.appUser.roles : [];
-  const hasSidebar = roles.some((role) =>
-    ["manager", "intern", "teammate"].includes(role),
-  );
 
   return (
     <div className="min-h-screen">
@@ -51,15 +47,7 @@ export function AppShell({
         </div>
       </header>
 
-      <div
-        className={cn(
-          "mx-auto max-w-6xl gap-6 px-4 py-6 sm:px-6 md:py-10",
-          hasSidebar && "grid md:grid-cols-[260px_minmax(0,1fr)]",
-        )}
-      >
-        {hasSidebar ? <Sidebar roles={roles} /> : null}
-        <main className="min-w-0">{children}</main>
-      </div>
+      <AppShellBody roles={roles}>{children}</AppShellBody>
     </div>
   );
 }

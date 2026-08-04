@@ -24,7 +24,10 @@ function getSidebarRoleForPath(pathname: string, roles: string[]): SidebarRole |
     return "intern";
   }
 
-  if (pathname.startsWith("/manager") && sidebarRoles.includes("manager")) {
+  if (
+    /^\/manager\/internships\/[^/]+/.test(pathname) &&
+    sidebarRoles.includes("manager")
+  ) {
     return "manager";
   }
 
@@ -32,22 +35,49 @@ function getSidebarRoleForPath(pathname: string, roles: string[]): SidebarRole |
     return "teammate";
   }
 
-  return sidebarRoles[0] ?? null;
+  return null;
 }
 
-function getTeammateInternshipId(pathname: string) {
-  const match = pathname.match(/^\/teammate\/internships\/([^/]+)/);
-  return match?.[1] ?? null;
+function getInternshipId(pathname: string, role: SidebarRole | null) {
+  if (role === "manager") {
+    return pathname.match(/^\/manager\/internships\/([^/]+)/)?.[1] ?? null;
+  }
+
+  if (role === "teammate") {
+    return pathname.match(/^\/teammate\/internships\/([^/]+)/)?.[1] ?? null;
+  }
+
+  return null;
 }
 
-function resolveHref(href: string, pathname: string, internshipId: string | null) {
-  if (!href.startsWith("#")) return href;
+function isWorkspaceSegment(href: string) {
+  return !href.startsWith("/") && !href.startsWith("#");
+}
 
-  if (internshipId) {
+function resolveHref({
+  href,
+  pathname,
+  role,
+  internshipId,
+}: {
+  href: string;
+  pathname: string;
+  role: SidebarRole | null;
+  internshipId: string | null;
+}) {
+  if (role === "manager" && internshipId && isWorkspaceSegment(href)) {
+    return `/manager/internships/${internshipId}/${href}`;
+  }
+
+  if (role === "teammate" && internshipId && href.startsWith("#")) {
     return `/teammate/internships/${internshipId}${href}`;
   }
 
-  return `${pathname}${href}`;
+  if (href.startsWith("#")) {
+    return `${pathname}${href}`;
+  }
+
+  return href;
 }
 
 function getHrefParts(href: string) {
@@ -71,8 +101,7 @@ function isItemActive({
   const { path, hash: itemHash } = getHrefParts(href);
 
   if (itemHash) {
-    const targetPath = path || pathname;
-    return pathname === targetPath && hash === itemHash;
+    return pathname === path && hash === itemHash;
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -102,7 +131,7 @@ export function Sidebar({ roles }: SidebarProps) {
   }, []);
 
   const role = getSidebarRoleForPath(pathname, roles);
-  const internshipId = getTeammateInternshipId(pathname);
+  const internshipId = getInternshipId(pathname, role);
 
   const groups = useMemo<SidebarGroup[]>(() => {
     if (!role) return [];
@@ -110,8 +139,8 @@ export function Sidebar({ roles }: SidebarProps) {
     const config = sidebarConfigByRole[role];
     if (!config) return [];
 
-    if (role === "teammate" && internshipId && config.workspace) {
-      return config.workspace;
+    if ((role === "manager" || role === "teammate") && internshipId) {
+      return config.workspace ?? config.general;
     }
 
     return config.general;
@@ -153,15 +182,20 @@ export function Sidebar({ roles }: SidebarProps) {
               </div>
 
               <div className="hidden pt-1 group-hover/sidebar-folder:block group-focus-within/sidebar-folder:block">
-                <div className="space-y-1 border-l border-border/80 pl-3 ml-5">
-                  {group.items.map((item) => {
+                <div className="ml-5 space-y-1 border-l border-border/80 pl-3">
+                  {group.items.map((item, itemIndex) => {
                     const Icon = item.icon;
-                    const href = resolveHref(item.href, pathname, internshipId);
+                    const href = resolveHref({
+                      href: item.href,
+                      pathname,
+                      role,
+                      internshipId,
+                    });
                     const active = isItemActive({ href, pathname, hash });
 
                     return (
                       <Link
-                        key={`${group.label}-${item.href}`}
+                        key={`${group.label}-${item.href}-${item.label}-${itemIndex}`}
                         href={href}
                         aria-current={active ? "page" : undefined}
                         className={cn(
