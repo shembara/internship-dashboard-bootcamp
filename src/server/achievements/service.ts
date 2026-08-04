@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { achievementCategories, type AchievementDto } from "@/lib/achievements/types";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
+import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { isCurrent } from "@/server/assignments/domain";
 import {
   isCurrentManagerAssignment,
@@ -13,6 +14,7 @@ import {
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import { recordFirestoreReadPath } from "@/server/firebase/read-diagnostics";
+import type { InternshipDocument } from "@/server/internships/domain";
 import { parseInternshipDocument } from "@/server/internships/repository";
 import { appUserSchema } from "@/server/users/app-user";
 
@@ -47,6 +49,31 @@ const achievementSchema = achievementInputSchema.extend({
   archivedAt: z.instanceof(Timestamp).optional(),
   archivedBy: z.string().min(1).optional(),
 });
+
+function todayInApplicationTimeZone() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: progressHubTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function assertAchievementBusinessRules(
+  internship: InternshipDocument,
+  input: Pick<z.infer<typeof achievementInputSchema>, "achievedOn" | "linkedStage">,
+) {
+  if (input.achievedOn < internship.startsAt.toDate().toISOString().slice(0, 10))
+    throw new Error("Achievement date cannot be before the internship start date.");
+  if (input.achievedOn > todayInApplicationTimeZone())
+    throw new Error("Achievement date cannot be in the future.");
+  if (
+    input.linkedStage &&
+    internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
+      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
+  )
+    throw new Error("Achievement cannot be linked to a future stage.");
+}
 
 async function access(
   internshipRef: FirebaseFirestore.DocumentReference,
@@ -241,6 +268,7 @@ export async function createAchievement(
       internshipStages.findIndex((stage) => stage.value === internship.currentStage)
     )
       throw new Error("Achievement cannot be linked to a future stage.");
+    assertAchievementBusinessRules(internship, input);
     transaction.create(ref.collection("achievements").doc(), {
       ...input,
       createdBy: userId,
@@ -273,6 +301,7 @@ export async function updateAchievement(
         "ROLE_REQUIRED",
         "Only the author or a manager can edit this achievement.",
       );
+    assertAchievementBusinessRules(viewer.internship, input);
     transaction.update(achievementRef, {
       ...input,
       updatedBy: userId,

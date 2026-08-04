@@ -25,7 +25,11 @@ import {
   getWeekPeriod,
   progressHubTimeZone,
 } from "@/lib/progress-hub/week";
-import { isCurrent, isOngoingOrScheduled } from "@/server/assignments/domain";
+import {
+  isCurrent,
+  isOngoingOrScheduled,
+  teammateAssignmentDocumentSchema as mentorAssignmentSchema,
+} from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import {
@@ -60,7 +64,6 @@ export const checkInMutationSchema = z.object({
   areasToImprove: textField,
   supportNeeded: textField,
   nextWeekFocus: textField,
-  privateMentorNote: z.string().trim().max(maxNoteLength).optional(),
 });
 
 export const agendaMutationSchema = z.object({
@@ -99,7 +102,7 @@ const reflectionSchema = reflectionMutationSchema.extend({
   submittedBy: z.string().min(1).optional(),
 });
 
-const checkInSchema = checkInMutationSchema.omit({ privateMentorNote: true }).extend({
+const checkInSchema = checkInMutationSchema.extend({
   internshipId: z.string().min(1),
   createdAt: timestampSchema,
   createdBy: z.string().min(1),
@@ -140,13 +143,6 @@ const actionItemSchema = actionItemMutationSchema.extend({
   completedBy: z.string().min(1).optional(),
 });
 
-const mentorAssignmentSchema = z.object({
-  teammateUserId: z.string().min(1),
-  responsibilities: z.array(z.string()),
-  startsAt: timestampSchema,
-  endsAt: timestampSchema.optional(),
-});
-
 type InternshipReference = FirebaseFirestore.DocumentReference;
 type ProgressAccess = {
   userId: string;
@@ -184,25 +180,23 @@ function assertMeaningful(values: string[]) {
 
 export function assertReflectionTransition(
   previous: z.infer<typeof reflectionSchema> | undefined,
-  next: ReflectionState,
 ) {
   if (previous?.state === "draft" && previous.submittedAt) {
     throw new Error("Draft reflections cannot have submission metadata.");
   }
-  if (previous?.state === "submitted" && next !== "submitted") {
-    throw new Error("Submitted reflections cannot be moved back to draft.");
+  if (previous?.state === "submitted") {
+    throw new Error("Submitted reflections are read-only and cannot be changed.");
   }
 }
 
 export function assertCheckInTransition(
   previous: z.infer<typeof checkInSchema> | undefined,
-  next: CheckInState,
 ) {
   if (previous?.state === "draft" && previous.sharedAt) {
     throw new Error("Draft check-ins cannot have sharing metadata.");
   }
-  if (previous?.state === "shared" && next !== "shared") {
-    throw new Error("Shared check-ins cannot be moved back to draft.");
+  if (previous?.state === "shared") {
+    throw new Error("Shared check-ins are read-only and cannot be changed.");
   }
 }
 
@@ -644,14 +638,18 @@ async function getProgressHubForViewer(
       ...common,
       reflection: currentReflection
         ? reflectionDto(
-          currentReflection,
-          access.writable && currentWeek.state === "current",
-        )
+            currentReflection,
+            access.writable &&
+              currentWeek.state === "current" &&
+              currentReflection.state !== "submitted",
+          )
         : undefined,
       reflectionHistory: parsedReflections.map((record) =>
         reflectionDto(
           record.data,
-          access.writable && record.data.weekKey === currentWeek.key,
+          access.writable &&
+            record.data.weekKey === currentWeek.key &&
+            record.data.state !== "submitted",
         ),
       ),
       mentorCheckIns: visibleCheckIns,
@@ -688,12 +686,17 @@ async function getProgressHubForViewer(
       ...common,
       reflections: visibleReflections,
       checkIn: currentMentorCheckIn
-        ? checkInDto(currentMentorCheckIn, access.writable)
+        ? checkInDto(
+            currentMentorCheckIn,
+            access.writable && currentMentorCheckIn.state !== "shared",
+          )
         : undefined,
       checkInHistory: visibleCheckIns.map((record) =>
         checkInDto(
           record.data,
-          access.writable && record.data.weekKey === currentWeek.key,
+          access.writable &&
+            record.data.weekKey === currentWeek.key &&
+            record.data.state !== "shared",
         ),
       ),
       privateMentorNotes: visibleMentorNotes,
@@ -808,7 +811,7 @@ export async function saveReflection(
     const previous = existing.exists
       ? reflectionSchema.parse(existing.data())
       : undefined;
-    assertReflectionTransition(previous, input.state);
+    assertReflectionTransition(previous);
     if (previous && previous.createdBy !== userId) {
       throw new AuthorizationError(
         "ROLE_REQUIRED",
@@ -871,13 +874,7 @@ export async function saveMentorCheckIn(
     if (!access.mentor)
       throw new AuthorizationError("ROLE_REQUIRED", "A current mentor is required.");
     const checkInRef = internshipRef.collection("mentorCheckIns").doc(input.weekKey);
-    const privateNoteRef = internshipRef
-      .collection("mentorPrivateNotes")
-      .doc(input.weekKey);
-    const [existing, existingPrivateNote] = await Promise.all([
-      transaction.get(checkInRef),
-      transaction.get(privateNoteRef),
-    ]);
+    const existing = await transaction.get(checkInRef);
     const previous = existing.exists ? checkInSchema.parse(existing.data()) : undefined;
     if (previous && previous.createdBy !== userId) {
       throw new AuthorizationError(
@@ -908,30 +905,6 @@ export async function saveMentorCheckIn(
       },
       { merge: true },
     );
-    if (input.privateMentorNote) {
-      if (
-        existingPrivateNote.exists &&
-        noteSchema.parse(existingPrivateNote.data()).createdBy !== userId
-      ) {
-        throw new AuthorizationError(
-          "ROLE_REQUIRED",
-          "Only the note author can edit it.",
-        );
-      }
-      transaction.set(
-        privateNoteRef,
-        {
-          weekKey: input.weekKey,
-          text: input.privateMentorNote,
-          ...(existingPrivateNote.exists
-            ? {}
-            : { createdAt: FieldValue.serverTimestamp(), createdBy: userId }),
-          updatedAt: FieldValue.serverTimestamp(),
-          updatedBy: userId,
-        },
-        { merge: true },
-      );
-    }
   });
 }
 
