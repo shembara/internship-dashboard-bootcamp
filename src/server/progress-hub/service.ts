@@ -879,6 +879,12 @@ export async function saveMentorCheckIn(
       transaction.get(privateNoteRef),
     ]);
     const previous = existing.exists ? checkInSchema.parse(existing.data()) : undefined;
+    if (previous && previous.createdBy !== userId) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "Mentor check-in belongs to another mentor and cannot be overwritten.",
+      );
+    }
     assertCheckInTransition(previous, input.state);
     transaction.set(
       checkInRef,
