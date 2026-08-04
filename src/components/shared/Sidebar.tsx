@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import {
@@ -77,6 +78,16 @@ function isItemActive({
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function isGroupActive(group: SidebarGroup, pathname: string, hash: string) {
+  return group.items.some((item) =>
+    isItemActive({
+      href: item.href.startsWith("#") ? `${pathname}${item.href}` : item.href,
+      pathname,
+      hash,
+    }),
+  );
+}
+
 export function Sidebar({ roles }: SidebarProps) {
   const pathname = usePathname();
   const [hash, setHash] = useState("");
@@ -118,42 +129,59 @@ export function Sidebar({ roles }: SidebarProps) {
       >
         {groups.map((group) => {
           const GroupIcon = group.icon;
+          const groupActive = isGroupActive(group, pathname, hash);
 
           return (
-            <div key={group.label} className="min-w-56 shrink-0 md:min-w-0">
-              <div className="mb-2 flex items-center gap-2 px-2 text-xs font-semibold uppercase text-muted-foreground">
-                <GroupIcon className="size-3.5" aria-hidden="true" />
-                <span className="truncate">{group.label}</span>
+            <div
+              key={group.label}
+              className="group/sidebar-folder min-w-56 shrink-0 rounded-xl md:min-w-0"
+            >
+              <div
+                className={cn(
+                  "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors",
+                  groupActive
+                    ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                    : "text-foreground hover:bg-muted",
+                )}
+              >
+                <GroupIcon className="size-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{group.label}</span>
+                <ChevronDown
+                  className="size-4 shrink-0 transition-transform group-hover/sidebar-folder:rotate-180 group-focus-within/sidebar-folder:rotate-180"
+                  aria-hidden="true"
+                />
               </div>
 
-              <div className="space-y-1">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const href = resolveHref(item.href, pathname, internshipId);
-                  const active = isItemActive({ href, pathname, hash });
+              <div className="hidden pt-1 group-hover/sidebar-folder:block group-focus-within/sidebar-folder:block">
+                <div className="space-y-1 border-l border-border/80 pl-3 ml-5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const href = resolveHref(item.href, pathname, internshipId);
+                    const active = isItemActive({ href, pathname, hash });
 
-                  return (
-                    <Link
-                      key={`${group.label}-${item.href}`}
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors",
-                        active
-                          ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                          : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
-                      )}
-                    >
-                      <Icon className="size-4 shrink-0" aria-hidden="true" />
-                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                      {item.badge ? (
-                        <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white">
-                          {item.badge}
-                        </span>
-                      ) : null}
-                    </Link>
-                  );
-                })}
+                    return (
+                      <Link
+                        key={`${group.label}-${item.href}`}
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                            : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
+                        )}
+                      >
+                        <Icon className="size-4 shrink-0" aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {item.badge ? (
+                          <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white">
+                            {item.badge}
+                          </span>
+                        ) : null}
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           );
