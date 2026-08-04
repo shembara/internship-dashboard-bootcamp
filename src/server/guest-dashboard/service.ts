@@ -118,7 +118,8 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
   const internships = await adminFirestore.collection("internships").get();
   const items = await Promise.all(
     internships.docs.map(async (document): Promise<GuestDashboardItem> => {
-      const internship = parseInternshipDocument(document.data());
+      const internshipData = document.data();
+      const internship = parseInternshipDocument(internshipData);
       const ref = document.ref;
       const [
         intern,
@@ -176,10 +177,9 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
           : [];
       });
       const startedAt =
-        statusChanges
-          .filter((change) => change.status === "active")
-          .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())[0]
-          ?.changedAt ?? internship.startsAt;
+        internshipData.createdAt instanceof Timestamp
+          ? internshipData.createdAt
+          : internship.startsAt;
       const dayOfInternship = internshipDayCount(
         startedAt,
         internship.status,
@@ -201,7 +201,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         requiredTotalCount: required.length,
         timeline: [
           ...(() => {
-            const occurredAt = iso(document.data().createdAt);
+            const occurredAt = iso(internshipData.createdAt);
             return occurredAt
               ? [{ id: "internship:created", occurredAt, title: "Internship created" }]
               : [];

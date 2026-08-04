@@ -18,7 +18,7 @@ function dashboard(): GuestDashboardDto {
         internName: "Ada Lovelace",
         status: "completed",
         currentStage: "finalReview",
-        startsAt: "2026-08-01T00:00:00.000Z",
+        startsAt: "2026-08-03T00:00:00.000Z",
         dayOfInternship: 10,
         mentors: [],
         managers: [],
@@ -57,7 +57,7 @@ describe("GuestDashboard", () => {
   it("shows the start date and completed internship duration", () => {
     render(<GuestDashboard dashboard={dashboard()} />);
 
-    expect(screen.getByText("Started 08/01/2026")).toBeTruthy();
+    expect(screen.getByText("Started 08/03/2026")).toBeTruthy();
     expect(screen.getByText("Length of internship")).toBeTruthy();
     expect(screen.getByText("10 days")).toBeTruthy();
   });
