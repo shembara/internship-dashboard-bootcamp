@@ -12,9 +12,9 @@ import { findAppUserByEmail, normalizeEmail } from "@/server/repositories/app-us
 const requestSchema = z.object({
   email: z.string().email(),
   roles: z
-    .array(z.enum(["intern", "teammate"]))
+    .array(z.enum(["manager", "intern", "teammate"]))
     .min(1)
-    .max(2)
+    .max(3)
     .refine((roles) => new Set(roles).size === roles.length, "Roles must be unique."),
 });
 

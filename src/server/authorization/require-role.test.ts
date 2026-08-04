@@ -48,9 +48,9 @@ describe("role authorization", () => {
     );
   });
 
-  it("treats a missing application-user record as guest access", () => {
+  it("treats a missing application-user record as uninvited access", () => {
     const guestContext: AuthorizationContext = {
-      access: "guest",
+      access: "notInvited",
       user: identity,
     };
 

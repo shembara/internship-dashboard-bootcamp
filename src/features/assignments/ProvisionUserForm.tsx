@@ -11,8 +11,13 @@ export function ProvisionUserForm() {
   const [roles, setRoles] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (roles.length === 0) {
+      setError("Please select at least one application role.");
+      return;
+    }
     setPending(true);
     setError("");
     const response = await fetch("/api/manager/users", {
@@ -29,8 +34,12 @@ export function ProvisionUserForm() {
       setPending(false);
       return;
     }
+    setEmail("");
+    setRoles([]);
+    setPending(false);
     router.refresh();
   }
+
   return (
     <form
       onSubmit={submit}
@@ -48,8 +57,24 @@ export function ProvisionUserForm() {
           className="h-10 rounded-lg border bg-background px-3"
         />
       </label>
-      <fieldset className="flex gap-4 text-sm">
+      <fieldset className="flex flex-wrap gap-4 text-sm">
         <legend className="mb-2 font-medium">Application access</legend>
+        <label className="flex items-center gap-2">
+          <input
+            name="roles"
+            type="checkbox"
+            value="manager"
+            checked={roles.includes("manager")}
+            onChange={(event) =>
+              setRoles((current) =>
+                event.target.checked
+                  ? [...current, "manager"]
+                  : current.filter((role) => role !== "manager"),
+              )
+            }
+          />{" "}
+          Manager
+        </label>
         <label className="flex items-center gap-2">
           <input
             name="roles"
@@ -80,7 +105,7 @@ export function ProvisionUserForm() {
               )
             }
           />{" "}
-          Teammate
+          Teammate / Mentor
         </label>
       </fieldset>
       <p className="text-xs text-muted-foreground">

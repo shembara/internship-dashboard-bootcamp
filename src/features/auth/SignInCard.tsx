@@ -15,24 +15,24 @@ import { getFirebaseClientAuth } from "@/lib/firebase/client";
 
 const localPersonas = [
   {
-    id: "manager",
-    name: "Maya Manager",
+    id: "manager2",
+    name: "Sasha Manager",
     email: "manager@fluxon.com",
   },
   {
     id: "mentor",
     name: "Morgan Mentor",
-    email: "mentor@fluxon.com",
+    email: "mentor@example.com",
   },
   {
     id: "intern",
     name: "Indira Intern",
-    email: "intern@ucu.edu.ua",
+    email: "intern@example.com",
   },
   {
     id: "guest",
     name: "Gina Guest",
-    email: "guest@ucu.edu.ua",
+    email: "guest@example.com",
   },
 ] as const;
 
@@ -103,10 +103,14 @@ export function SignInCard() {
         ),
       );
     } catch (signInError) {
-      setError(
+      const message =
         signInError instanceof Error
           ? signInError.message
-          : "Local sign-in failed.",
+          : "Local sign-in failed.";
+      setError(
+        message.includes("user-not-found") || message.includes("invalid-credential")
+          ? `${message} (Make sure you ran: FIREBASE_AUTHENTICATION_MODE=email-password-development npx tsx scripts/seed-development.ts)`
+          : message,
       );
       setPendingPersona(undefined);
     }
@@ -130,35 +134,58 @@ export function SignInCard() {
       </div>
 
       {environment.authenticationMode === "email-password-development" ? (
-        <div>
-          <p className="mb-3 text-sm font-medium">Local development personas</p>
-          <div className="grid grid-cols-2 gap-2">
-            {localPersonas.map((persona) => (
-              <Button
-                key={persona.id}
-                variant="outline"
-                className="h-auto justify-start px-3 py-3"
-                disabled={Boolean(pendingPersona)}
-                onClick={() => signInAsLocalPersona(persona)}
-              >
-                {pendingPersona === persona.id ? (
-                  <LoaderCircle className="animate-spin" />
-                ) : null}
-                <span className="text-left">
-                  <span className="block">Authenticate as {persona.id}</span>
-                  <span className="block text-xs font-normal text-muted-foreground">
-                    {persona.email}
+        <div className="space-y-4">
+          <div>
+            <p className="mb-3 text-sm font-medium">Local development personas</p>
+            <div className="grid grid-cols-2 gap-2">
+              {localPersonas.map((persona) => (
+                <Button
+                  key={persona.id}
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start px-3 py-3"
+                  disabled={Boolean(pendingPersona)}
+                  onClick={() => signInAsLocalPersona(persona)}
+                >
+                  {pendingPersona === persona.id ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : null}
+                  <span className="text-left">
+                    <span className="block">Authenticate as {persona.id}</span>
+                    <span className="block text-xs font-normal text-muted-foreground">
+                      {persona.email}
+                    </span>
                   </span>
-                </span>
-              </Button>
-            ))}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Personas use only the Firebase development project.
+            </p>
           </div>
-          <p className="mt-4 text-xs leading-5 text-muted-foreground">
-            Personas use only the Firebase development project.
-          </p>
+          <div className="relative flex items-center py-1">
+            <div className="grow border-t border-border" />
+            <span className="shrink mx-3 text-xs uppercase text-muted-foreground">Or</span>
+            <div className="grow border-t border-border" />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-10 w-full"
+            disabled={Boolean(pendingPersona)}
+            onClick={signInWithGoogle}
+          >
+            {pendingPersona === "google" ? (
+              <LoaderCircle className="animate-spin" />
+            ) : (
+              <LogIn />
+            )}
+            Continue with Google
+          </Button>
         </div>
       ) : (
         <Button
+          type="button"
           className="h-11 w-full"
           disabled={Boolean(pendingPersona)}
           onClick={signInWithGoogle}
