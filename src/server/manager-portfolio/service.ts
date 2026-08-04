@@ -8,6 +8,7 @@ import {
   isCurrentManagerAssignment,
   isOperationalInternshipStatus,
   isCurrent,
+  isOngoingOrScheduled,
   managerAssignmentDocumentSchema as managerAssignmentSchema,
   placementDocumentSchema as placementSchema,
   teammateAssignmentDocumentSchema as teammateAssignmentSchema,
@@ -155,7 +156,7 @@ function dateInApplicationTimeZone(value: Timestamp) {
 function calendarDayDistance(from: string, to: string) {
   return Math.round(
     (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
-      86_400_000,
+    86_400_000,
   );
 }
 
@@ -163,8 +164,8 @@ async function getUserSummaries(userIds: Iterable<string>) {
   const ids = [...new Set(userIds)];
   const documents = ids.length
     ? await adminFirestore.getAll(
-        ...ids.map((id) => adminFirestore.collection("users").doc(id)),
-      )
+      ...ids.map((id) => adminFirestore.collection("users").doc(id)),
+    )
     : [];
   return new Map(
     documents.flatMap((document) => {
@@ -272,7 +273,7 @@ async function buildPortfolioItem(
   const currentMentors = assignmentData.filter(
     (assignment) =>
       assignment.responsibilities.includes("mentor") &&
-      isCurrent(assignment as DateRange),
+      isOngoingOrScheduled(assignment as DateRange),
   );
   const [users, teams] = await Promise.all([
     getUserSummaries(currentMentors.map((assignment) => assignment.teammateUserId)),
@@ -292,7 +293,7 @@ async function buildPortfolioItem(
     ),
   ]);
   const currentPlacement = teams
-    .filter(([, placement]) => isCurrent(placement as DateRange))
+    .filter(([, placement]) => isOngoingOrScheduled(placement as DateRange))
     .sort((a, b) => b[1].startsAt.toMillis() - a[1].startsAt.toMillis())[0];
   const checklist = await getStageChecklist(internshipRef, internship, managerId);
   const progressHub = await getManagerProgressHub(
@@ -325,9 +326,9 @@ async function buildPortfolioItem(
     mentorUserIds: currentMentors.map((assignment) => assignment.teammateUserId),
     currentPlacement: currentPlacement
       ? {
-          teamId: currentPlacement[1].teamId,
-          teamTitle: currentPlacement[2] ?? "Unknown team",
-        }
+        teamId: currentPlacement[1].teamId,
+        teamTitle: currentPlacement[2] ?? "Unknown team",
+      }
       : undefined,
     reflectionState: progressHub.summary.reflectionState,
     mentorCheckInState: progressHub.summary.mentorCheckInState,
@@ -456,8 +457,8 @@ export async function getManagerPortfolioDetail(
   ];
   const teamDocuments = teamIds.length
     ? await adminFirestore.getAll(
-        ...teamIds.map((teamId) => adminFirestore.collection("teams").doc(teamId)),
-      )
+      ...teamIds.map((teamId) => adminFirestore.collection("teams").doc(teamId)),
+    )
     : [];
   const teams = new Map(
     teamDocuments.map((team) => [
@@ -474,10 +475,10 @@ export async function getManagerPortfolioDetail(
   const currentMentors = teammateData.filter(
     (assignment) =>
       assignment.responsibilities.includes("mentor") &&
-      isCurrent(assignment as DateRange),
+      isOngoingOrScheduled(assignment as DateRange),
   );
   const currentPlacement = placementData
-    .filter((placement) => isCurrent(placement as DateRange))
+    .filter((placement) => isOngoingOrScheduled(placement as DateRange))
     .sort((a, b) => b.startsAt.toMillis() - a.startsAt.toMillis())[0];
   const base = {
     id: internshipId,
@@ -503,9 +504,9 @@ export async function getManagerPortfolioDetail(
     mentorUserIds: currentMentors.map((assignment) => assignment.teammateUserId),
     currentPlacement: currentPlacement
       ? {
-          teamId: currentPlacement.teamId,
-          teamTitle: teams.get(currentPlacement.teamId) ?? "Unknown team",
-        }
+        teamId: currentPlacement.teamId,
+        teamTitle: teams.get(currentPlacement.teamId) ?? "Unknown team",
+      }
       : undefined,
     reflectionState: progressHub.summary.reflectionState,
     mentorCheckInState: progressHub.summary.mentorCheckInState,
@@ -743,8 +744,8 @@ export async function removeManagerAssignment(
       .doc(input.managerUserId);
     const replacementRef = input.replacementManagerUserId
       ? internshipRef
-          .collection("managerAssignments")
-          .doc(input.replacementManagerUserId)
+        .collection("managerAssignments")
+        .doc(input.replacementManagerUserId)
       : undefined;
     const [internship, assignments, target, replacement, replacementUser] =
       await Promise.all([
@@ -754,8 +755,8 @@ export async function removeManagerAssignment(
         replacementRef ? transaction.get(replacementRef) : Promise.resolve(undefined),
         input.replacementManagerUserId
           ? transaction.get(
-              adminFirestore.collection("users").doc(input.replacementManagerUserId),
-            )
+            adminFirestore.collection("users").doc(input.replacementManagerUserId),
+          )
           : Promise.resolve(undefined),
       ]);
     if (

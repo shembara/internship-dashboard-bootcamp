@@ -27,6 +27,7 @@ import {
 } from "@/lib/progress-hub/week";
 import {
   isCurrent,
+  isOngoingOrScheduled,
   teammateAssignmentDocumentSchema as mentorAssignmentSchema,
 } from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
@@ -465,7 +466,10 @@ async function actionOwnerOptions(
   });
   teammateAssignments.docs.forEach((document) => {
     const assignment = mentorAssignmentSchema.parse(document.data());
-    if (assignment.responsibilities.includes("mentor") && isCurrent(assignment)) {
+    if (
+      assignment.responsibilities.includes("mentor") &&
+      isOngoingOrScheduled(assignment)
+    ) {
       owners.set(assignment.teammateUserId, "mentor");
     }
   });
@@ -541,18 +545,18 @@ async function getProgressHubForViewer(
       .get(),
     viewer === "intern"
       ? internshipRef
-          .collection("privateInternNotes")
-          .orderBy("createdAt", "desc")
-          .limit(50)
-          .get()
+        .collection("privateInternNotes")
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get()
       : Promise.resolve(undefined),
     viewer === "intern"
       ? Promise.resolve(undefined)
       : internshipRef
-          .collection("mentorPrivateNotes")
-          .orderBy("createdAt", "desc")
-          .limit(50)
-          .get(),
+        .collection("mentorPrivateNotes")
+        .orderBy("createdAt", "desc")
+        .limit(50)
+        .get(),
     internshipRef.collection("actionItems").orderBy("dueDate", "asc").get(),
     actionOwnerOptions(internshipRef, internship),
   ]);
@@ -589,8 +593,8 @@ async function getProgressHubForViewer(
       : undefined;
   const summaryCheckIn =
     viewer === "manager" ||
-    currentCheckIn?.state === "shared" ||
-    (viewer === "mentor" && currentCheckIn?.createdBy === userId)
+      currentCheckIn?.state === "shared" ||
+      (viewer === "mentor" && currentCheckIn?.createdBy === userId)
       ? currentCheckIn
       : undefined;
   const latestSharedCheckInAt = parsedCheckIns
@@ -872,7 +876,13 @@ export async function saveMentorCheckIn(
     const checkInRef = internshipRef.collection("mentorCheckIns").doc(input.weekKey);
     const existing = await transaction.get(checkInRef);
     const previous = existing.exists ? checkInSchema.parse(existing.data()) : undefined;
-    assertCheckInTransition(previous);
+    if (previous && previous.createdBy !== userId) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "Mentor check-in belongs to another mentor and cannot be overwritten.",
+      );
+    }
+    assertCheckInTransition(previous, input.state);
     transaction.set(
       checkInRef,
       {
@@ -1091,10 +1101,10 @@ export async function saveActionItem(
         ...(existing.exists
           ? {}
           : {
-              status: "open",
-              createdAt: FieldValue.serverTimestamp(),
-              createdBy: userId,
-            }),
+            status: "open",
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: userId,
+          }),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,
       },

@@ -41,10 +41,7 @@ export function isCurrentManagerAssignment(
   assignment: ManagerAssignmentPeriod,
   now = Timestamp.now(),
 ): boolean {
-  return (
-    (!assignment.startsAt || assignment.startsAt.toMillis() <= now.toMillis()) &&
-    (!assignment.endsAt || assignment.endsAt.toMillis() > now.toMillis())
-  );
+  return !assignment.endsAt || assignment.endsAt.toMillis() > now.toMillis();
 }
 
 export function isOperationalInternshipStatus(status: string): boolean {
