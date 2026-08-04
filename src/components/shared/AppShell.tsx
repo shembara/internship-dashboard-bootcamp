@@ -58,7 +58,7 @@ export function AppShell({
         )}
       >
         {hasSidebar ? <Sidebar roles={roles} /> : null}
-        <main className="min-w-0">{children}</
+        <main className="min-w-0">{children}</main>
       </div>
     </div>
   );
