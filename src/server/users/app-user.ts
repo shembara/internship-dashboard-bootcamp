@@ -18,7 +18,10 @@ export const appUserSchema = z.object({
   active: z.boolean(),
   roles: z.array(applicationRoleSchema).min(1),
   identityState: z.enum(["pending", "linked"]).default("linked"),
-  identities: z.array(appUserIdentitySchema),
+
+  // Додаємо .default([]) та за потреби .optional()
+  identities: z.array(appUserIdentitySchema).optional().default([]),
+
   createdAt: z.instanceof(Timestamp),
   updatedAt: z.instanceof(Timestamp),
 });
