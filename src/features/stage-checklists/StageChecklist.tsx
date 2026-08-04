@@ -27,8 +27,8 @@ function TaskCard({
 }) {
   return (
     <article
-      draggable={item.canComplete && !pending}
-      className="rounded-xl border bg-card p-3 shadow-sm"
+    draggable={item.canComplete && !pending}
+    className="cursor-grab rounded-xl border bg-card p-3 shadow-sm active:cursor-grabbing"
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", item.key);
@@ -52,24 +52,10 @@ function TaskCard({
         </p>
       ) : null}
       {item.canComplete ? (
-        <label className="mt-3 block text-xs font-medium text-muted-foreground">
-          Move {item.label} to
-          <select
-            className="mt-1 w-full rounded-lg border bg-background px-2 py-1.5 text-sm text-foreground"
-            value={item.status}
-            disabled={pending}
-            onChange={(event) =>
-              onStatusChange(event.target.value as StageChecklistItemDto["status"])
-            }
-          >
-            {columns.map((column) => (
-              <option key={column.status} value={column.status}>
-                {column.title}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
+      <p className="mt-3 text-xs text-muted-foreground">
+        Drag this task to another column to change its status.
+      </p>
+    ) : null}
       {item.lockedForIntern ? (
         <p className="mt-3 text-xs text-muted-foreground">
           This mentor-reviewed task is locked.
