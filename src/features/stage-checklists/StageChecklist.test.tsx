@@ -25,6 +25,7 @@ function checklist(): StageChecklistDto {
       status: "todo" as const,
       completed: false,
       canComplete: true,
+      canDelete: false,
       lockedForIntern: false,
     },
     {
@@ -34,6 +35,7 @@ function checklist(): StageChecklistDto {
       status: "inProgress" as const,
       completed: false,
       canComplete: true,
+      canDelete: true,
       lockedForIntern: false,
     },
     {
@@ -43,6 +45,7 @@ function checklist(): StageChecklistDto {
       status: "done" as const,
       completed: true,
       canComplete: true,
+      canDelete: false,
       lockedForIntern: false,
     },
   ];
@@ -108,5 +111,21 @@ describe("StageChecklist", () => {
     expect(screen.getByText("Under mentor review")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Request changes" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
+  });
+
+  it("deletes a custom task", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
+    );
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Delete task" }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks"),
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({ stage: "onboarding", itemKey: "notes" }),
+      }),
+    );
   });
 });

@@ -10,6 +10,7 @@ export type StageChecklistItemDto = {
   completedAt?: string;
   completedBy?: string;
   canComplete: boolean;
+  canDelete: boolean;
   reviewedAt?: string;
   reviewedBy?: string;
   lockedForIntern: boolean;

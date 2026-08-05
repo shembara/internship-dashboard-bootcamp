@@ -19,10 +19,12 @@ const columns = [
 function TaskCard({
   item,
   onStatusChange,
+  onDelete,
   pending,
 }: {
   item: StageChecklistItemDto;
   onStatusChange: (status: StageChecklistItemDto["status"]) => void;
+  onDelete: () => void;
   pending: boolean;
 }) {
   const nextStatus =
@@ -83,6 +85,18 @@ function TaskCard({
         <p className="mt-3 text-xs text-muted-foreground">
           This mentor-reviewed task is locked.
         </p>
+      ) : null}
+      {item.canDelete ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="mt-3"
+          disabled={pending}
+          onClick={onDelete}
+        >
+          {pending ? "Deleting…" : "Delete task"}
+        </Button>
       ) : null}
     </article>
   );
@@ -196,13 +210,18 @@ export function StageChecklist({
     }
   }, [checklist]);
 
-  async function mutate(url: string, body: object, key: string) {
+  async function mutate(
+    url: string,
+    body: object,
+    key: string,
+    method: "POST" | "PATCH" | "DELETE" = "PATCH",
+  ) {
     if (pending) return false;
     setPending(key);
     setError("");
     try {
       const response = await fetch(url, {
-        method: key === "stage" || key === "add" ? "POST" : "PATCH",
+        method,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -264,6 +283,7 @@ export function StageChecklist({
                       `/api/internships/${internshipId}/stage-checklist/tasks`,
                       { stage: checklist.stage, label, type },
                       "add",
+                      "POST",
                     )
                   }
                 />
@@ -310,6 +330,7 @@ export function StageChecklist({
                   `/api/internships/${internshipId}/stage-checklist/complete`,
                   { stage: checklist.stage },
                   "stage",
+                  "POST",
                 )
               }
             >
@@ -378,7 +399,17 @@ export function StageChecklist({
                   <TaskCard
                     key={item.key}
                     item={item}
-                    pending={pending === item.key}
+                    pending={
+                      pending === item.key || pending === `delete-${item.key}`
+                    }
+                    onDelete={() =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/tasks`,
+                        { stage: checklist.stage, itemKey: item.key },
+                        `delete-${item.key}`,
+                        "DELETE",
+                      )
+                    }
                     onStatusChange={(status) =>
                       mutate(
                         `/api/internships/${internshipId}/stage-checklist/items`,

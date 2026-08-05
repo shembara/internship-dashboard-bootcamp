@@ -59,6 +59,11 @@ export const createChecklistItemSchema = z.object({
   type: z.enum(["required", "recommended"]),
 });
 
+export const deleteChecklistItemSchema = z.object({
+  stage: z.enum(stageValues),
+  itemKey: z.string().min(1).max(120),
+});
+
 export const stageAdvancementSchema = z.object({
   stage: z.enum(stageValues),
 });
@@ -166,11 +171,14 @@ function parseStageProgress(data: unknown, stage: InternshipStage): StageProgres
     ...getStageChecklistTemplate(stage).items.map((item) => item.key),
     ...progress.customItems.map((item) => item.key),
   ]);
-  if (Object.keys(progress.items).some((key) => !allowedKeys.has(key))) {
-    throw new Error("Stage progress contains an unknown checklist item.");
-  }
+  // Older delete operations could leave item progress behind after its custom
+  // definition was removed. Ignore that orphaned progress so the checklist
+  // remains readable; current deletes replace the complete items map.
+  const items = Object.fromEntries(
+    Object.entries(progress.items).filter(([key]) => allowedKeys.has(key)),
+  );
 
-  return progress;
+  return { ...progress, items };
 }
 
 export function resolveChecklistAccess(
@@ -325,6 +333,11 @@ function stageChecklistDto(
         !isStageCompleted &&
         !(access.isIntern && reviewed && status === "done") &&
         access.canMoveTasks,
+      canDelete:
+        isMutable &&
+        !isStageCompleted &&
+        access.canAddTasks &&
+        progress.customItems.some((customItem) => customItem.key === item.key),
       reviewedAt: itemProgress.reviewedAt?.toDate().toISOString(),
       reviewedBy: itemProgress.reviewedBy,
       lockedForIntern: access.isIntern && reviewed && status === "done",
@@ -608,7 +621,7 @@ export async function createChecklistItem(
     if (!access.canAddTasks) {
       throw new AuthorizationError(
         "ROLE_REQUIRED",
-        "A mentor or manager is required to add tasks.",
+        "You cannot add tasks for this internship.",
       );
     }
     const progress = existing.exists
@@ -640,6 +653,78 @@ export async function createChecklistItem(
         updatedBy: userId,
       },
       { merge: true },
+    );
+  });
+  const updated = await internshipRef.get();
+  return getStageChecklist(
+    internshipRef,
+    parseInternshipDocument(updated.data()),
+    userId,
+  );
+}
+
+export async function deleteChecklistItem(
+  internshipId: string,
+  userId: string,
+  input: z.infer<typeof deleteChecklistItemSchema>,
+) {
+  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  await adminFirestore.runTransaction(async (transaction) => {
+    const current = await transaction.get(internshipRef);
+    if (!current.exists) throw new Error("Internship not found.");
+    const internship = parseInternshipDocument(current.data());
+    assertMutableStatus(internship);
+    if (internship.currentStage !== input.stage) {
+      throw new Error("This checklist stage is no longer current.");
+    }
+    const progressRef = internshipRef.collection("stageProgress").doc(input.stage);
+    const existing = await transaction.get(progressRef);
+    const progress = existing.exists
+      ? parseStageProgress(existing.data(), input.stage)
+      : undefined;
+    assertOpenStage(progress);
+    const access = await resolveTransactionAccess(
+      transaction,
+      internshipRef,
+      internship,
+      userId,
+    );
+    if (!access.canAddTasks) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "You cannot delete tasks for this internship.",
+      );
+    }
+    const customItems = progress?.customItems ?? [];
+    if (!customItems.some((item) => item.key === input.itemKey)) {
+      throw new Error("Only custom tasks can be deleted.");
+    }
+    const items: Record<string, unknown> = {
+      ...(progress?.items ?? initialItems(input.stage)),
+    };
+    delete items[input.itemKey];
+    const remainingCustomItems = customItems.filter(
+      (item) => item.key !== input.itemKey,
+    );
+    const allDefinitions = [
+      ...getStageChecklistTemplate(input.stage).items,
+      ...remainingCustomItems,
+    ];
+    const requiredComplete = allDefinitions
+      .filter((item) => item.type === "required")
+      .every((item) => {
+        const task = items[item.key] as z.infer<typeof itemProgressSchema>;
+        return task?.status === "done" || task?.completed;
+      });
+    transaction.update(
+      progressRef,
+      {
+        customItems: remainingCustomItems,
+        items,
+        reviewStatus: requiredComplete ? "underReview" : "active",
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: userId,
+      },
     );
   });
   const updated = await internshipRef.get();

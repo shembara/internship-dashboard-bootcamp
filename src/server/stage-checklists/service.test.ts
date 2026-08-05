@@ -109,7 +109,7 @@ describe("checklist access", () => {
     });
   });
 
-  it("allows the assigned intern to move tasks but not add or review them", () => {
+  it("allows the assigned intern to move and add tasks but not review them", () => {
     expect(
       resolveChecklistAccess(
         internship(),
@@ -121,7 +121,7 @@ describe("checklist access", () => {
     ).toMatchObject({
       completionActors: ["intern"],
       canMoveTasks: true,
-      canAddTasks: false,
+      canAddTasks: true,
       canReviewTasks: false,
       isIntern: true,
     });
