@@ -115,7 +115,7 @@ export const managerSidebarConfig: RoleSidebarConfig = {
         { label: "Shared notes", href: "shared-notes", icon: FileText },
         { label: "Mentor-private notes", href: "mentor-private-notes", icon: ShieldCheck },
         { label: "Action items", href: "action-items", icon: CheckSquare },
-        { label: "Feedback cycles", href: "/manager/internships", icon: MessageSquareText },
+        { label: "Feedback cycles", href: "feedback-cycles", icon: MessageSquareText },
       ],
     },
     {

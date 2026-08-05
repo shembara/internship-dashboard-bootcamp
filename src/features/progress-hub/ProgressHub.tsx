@@ -602,6 +602,19 @@ function History({ hub }: { hub: ProgressHubDto }) {
   );
 }
 
+function FeedbackCycles() {
+  return (
+    <Section
+      title="Feedback cycles"
+      description="Start and publish feedback cycles for this internship."
+    >
+      <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+        Feedback cycle management will be added here.
+      </div>
+    </Section>
+  );
+}
+
 export type ProgressHubSection =
   | "weekly-overview"
   | "my-weekly-reflection"
@@ -612,7 +625,8 @@ export type ProgressHubSection =
   | "my-private-notes"
   | "mentor-private-notes"
   | "action-items"
-  | "history";
+  | "history"
+  | "feedback-cycles";
 
 export function ProgressHub({
   internshipId,
@@ -808,6 +822,10 @@ export function ProgressHub({
     {
       id: "history",
       node: <History hub={hub} />,
+    },
+    {
+      id: "feedback-cycles",
+      node: <FeedbackCycles />,
     },
   ];
 

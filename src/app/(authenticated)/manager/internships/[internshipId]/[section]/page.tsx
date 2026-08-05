@@ -16,6 +16,7 @@ const managerProgressHubSections = [
   "mentor-private-notes",
   "action-items",
   "history",
+  "feedback-cycles",
 ] satisfies ProgressHubSection[];
 
 function isManagerProgressHubSection(
