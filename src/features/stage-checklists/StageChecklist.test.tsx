@@ -59,6 +59,8 @@ function checklist(): StageChecklistDto {
     canCompleteStage: true,
     canAddTasks: true,
     canReviewDoneTasks: true,
+    reviewStatus: "underReview",
+    canViewAllStages: false,
   };
 }
 
@@ -82,12 +84,7 @@ describe("StageChecklist", () => {
       vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
     );
     render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
-    await userEvent
-      .setup()
-      .selectOptions(
-        screen.getByLabelText("Move Accounts configured to"),
-        "inProgress",
-      );
+    await userEvent.setup().click(screen.getByRole("button", { name: "Start" }));
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining("/items"),
       expect.objectContaining({
@@ -108,7 +105,8 @@ describe("StageChecklist", () => {
         .getByRole("progressbar", { name: "Required task progress" })
         .getAttribute("aria-valuenow"),
     ).toBe("1");
-    expect(screen.getByRole("button", { name: "Confirm mentor review" })).toBeTruthy();
+    expect(screen.getByText("Under mentor review")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Request changes" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
   });
 });

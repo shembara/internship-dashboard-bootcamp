@@ -25,10 +25,22 @@ function TaskCard({
   onStatusChange: (status: StageChecklistItemDto["status"]) => void;
   pending: boolean;
 }) {
+  const nextStatus =
+    item.status === "todo"
+      ? "inProgress"
+      : item.status === "inProgress"
+        ? "done"
+        : "todo";
+  const actionLabel =
+    item.status === "todo"
+      ? "Start"
+      : item.status === "inProgress"
+        ? "Mark done"
+        : "Reopen";
   return (
     <article
-    draggable={item.canComplete && !pending}
-    className="cursor-grab rounded-xl border bg-card p-3 shadow-sm active:cursor-grabbing"
+      draggable={item.canComplete && !pending}
+      className="cursor-grab rounded-xl border bg-card p-3 shadow-sm active:cursor-grabbing"
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/plain", item.key);
@@ -52,10 +64,21 @@ function TaskCard({
         </p>
       ) : null}
       {item.canComplete ? (
-      <p className="mt-3 text-xs text-muted-foreground">
-        Drag this task to another column to change its status.
-      </p>
-    ) : null}
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Drag to another column or use the button.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => onStatusChange(nextStatus)}
+          >
+            {pending ? "Saving…" : actionLabel}
+          </Button>
+        </div>
+      ) : null}
       {item.lockedForIntern ? (
         <p className="mt-3 text-xs text-muted-foreground">
           This mentor-reviewed task is locked.
@@ -213,6 +236,13 @@ export function StageChecklist({
             {checklist.requiredCompletedCount} of {checklist.requiredTotalCount}{" "}
             required tasks done
           </p>
+          <p className="mt-1 text-sm font-medium text-[var(--brand-strong)]">
+            {checklist.reviewStatus === "underReview"
+              ? "Under mentor review"
+              : checklist.reviewStatus === "completed"
+                ? "Completed"
+                : "Active"}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {checklist.canAddTasks ? (
@@ -271,9 +301,9 @@ export function StageChecklist({
           style={{ width: `${requiredProgress}%` }}
         />
       </div>
-      {!checklist.readyToComplete && checklist.canCompleteStage ? (
+      {checklist.reviewStatus === "active" && checklist.canCompleteStage ? (
         <p className="text-sm text-muted-foreground">
-          All required tasks must be in Done before the next stage can be approved.
+          Move every Required task to Done to send this stage to mentor review.
         </p>
       ) : null}
       {checklist.latestReviewRequest ? (
@@ -330,21 +360,6 @@ export function StageChecklist({
               </div>
               {column.status === "done" && checklist.canReviewDoneTasks ? (
                 <div className="mt-3 space-y-2 border-t pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="w-full"
-                    disabled={isPending}
-                    onClick={() =>
-                      mutate(
-                        `/api/internships/${internshipId}/stage-checklist/items/review`,
-                        { stage: checklist.stage, action: "approve" },
-                        "review-done",
-                      )
-                    }
-                  >
-                    {pending === "review-done" ? "Saving…" : "Confirm mentor review"}
-                  </Button>
                   <Modal
                     trigger={
                       <Button

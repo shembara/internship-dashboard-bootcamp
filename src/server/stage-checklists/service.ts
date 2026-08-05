@@ -58,6 +58,10 @@ export const stageAdvancementSchema = z.object({
   stage: z.enum(stageValues),
 });
 
+export const stageSelectionSchema = z.object({
+  stage: z.enum(stageValues).optional(),
+});
+
 const itemProgressSchema = z.object({
   completed: z.boolean(),
   status: z.enum(["todo", "inProgress", "done"]).optional(),
@@ -88,6 +92,7 @@ const stageProgressSchema = z.object({
       }),
     )
     .default([]),
+  reviewStatus: z.enum(["active", "underReview"]).optional(),
   startedAt: z.instanceof(Timestamp),
   completedAt: z.instanceof(Timestamp).optional(),
   completedBy: z.string().min(1).optional(),
@@ -106,6 +111,7 @@ type ChecklistAccess = {
   canAddTasks: boolean;
   canReviewTasks: boolean;
   isIntern: boolean;
+  canViewAllStages: boolean;
 };
 
 const managerAssignmentSchema = z.object({
@@ -228,10 +234,11 @@ export function resolveChecklistAccess(
     canAdvance: mentor || manager,
     // The task board is shared by the intern and their currently assigned teammates.
     // Mentor responsibility remains required for Progress Hub and stage advancement.
-    canMoveTasks: intern || teammate || manager,
-    canAddTasks: intern || teammate || manager,
-    canReviewTasks: teammate,
+    canMoveTasks: intern || mentor || manager,
+    canAddTasks: mentor || manager,
+    canReviewTasks: mentor || manager,
     isIntern: intern,
+    canViewAllStages: mentor || manager,
   } satisfies ChecklistAccess;
 }
 
@@ -332,6 +339,10 @@ function stageChecklistDto(
   });
   const requiredItems = items.filter((item) => item.type === "required");
   const requiredCompletedCount = requiredItems.filter((item) => item.completed).length;
+  const requiredComplete = requiredCompletedCount === requiredItems.length;
+  const reviewStatus = isStageCompleted
+    ? "completed"
+    : (progress.reviewStatus ?? (requiredComplete ? "underReview" : "active"));
 
   return {
     stage,
@@ -342,7 +353,7 @@ function stageChecklistDto(
     requiredCompletedCount,
     requiredTotalCount: requiredItems.length,
     readyToComplete:
-      !isStageCompleted && requiredCompletedCount === requiredItems.length,
+      !isStageCompleted && requiredComplete && reviewStatus === "underReview",
     isStageCompleted,
     completedAt: progress.completedAt?.toDate().toISOString(),
     canCompleteStage: isMutable && !isStageCompleted && access.canAdvance,
@@ -351,8 +362,10 @@ function stageChecklistDto(
       isMutable &&
       !isStageCompleted &&
       access.canReviewTasks &&
-      items.some((item) => item.status === "done" && !item.reviewedAt),
+      reviewStatus === "underReview",
     latestReviewRequest: progress.reviewRequests.at(-1)?.comment,
+    reviewStatus,
+    canViewAllStages: access.canViewAllStages,
   };
 }
 
@@ -374,21 +387,35 @@ export async function getStageChecklist(
   internshipRef: InternshipReference,
   internship: InternshipDocument,
   userId: string,
+  selectedStage: InternshipStage = internship.currentStage,
 ) {
   const access = await resolveAccess(internshipRef, internship, userId);
+  const currentStageIndex = internshipStages.findIndex(
+    (stage) => stage.value === internship.currentStage,
+  );
+  const selectedStageIndex = internshipStages.findIndex(
+    (stage) => stage.value === selectedStage,
+  );
+  if (selectedStageIndex === -1) throw new Error("Invalid internship stage.");
+  if (selectedStageIndex > currentStageIndex && !access.canViewAllStages) {
+    throw new AuthorizationError(
+      "ROLE_REQUIRED",
+      "You cannot view a future internship stage.",
+    );
+  }
   const progressRef =
-    internship.status === "active"
-      ? await ensureStageProgress(internshipRef, internship.currentStage, userId)
-      : internshipRef.collection("stageProgress").doc(internship.currentStage);
+    internship.status === "active" && selectedStage === internship.currentStage
+      ? await ensureStageProgress(internshipRef, selectedStage, userId)
+      : internshipRef.collection("stageProgress").doc(selectedStage);
   const progress = await progressRef.get();
 
   return stageChecklistDto(
-    internship.currentStage,
+    selectedStage,
     progress.exists
-      ? parseStageProgress(progress.data(), internship.currentStage)
-      : initialReadOnlyStageProgress(internship.currentStage),
+      ? parseStageProgress(progress.data(), selectedStage)
+      : initialReadOnlyStageProgress(selectedStage),
     access,
-    internship.status === "active",
+    internship.status === "active" && selectedStage === internship.currentStage,
   );
 }
 
@@ -459,11 +486,22 @@ export async function updateChecklistItem(
         ? { completedAt: FieldValue.serverTimestamp(), completedBy: userId }
         : {}),
     };
+    const allDefinitions = [
+      ...getStageChecklistTemplate(input.stage).items,
+      ...(progress?.customItems ?? []),
+    ];
+    const requiredComplete = allDefinitions
+      .filter((candidate) => candidate.type === "required")
+      .every((candidate) => {
+        const task = items[candidate.key] as z.infer<typeof itemProgressSchema>;
+        return task?.status === "done" || task?.completed;
+      });
     transaction.set(
       progressRef,
       {
         ...(progress ?? initialStageProgress(input.stage, userId)),
         items,
+        reviewStatus: requiredComplete ? "underReview" : "active",
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,
       },
@@ -514,26 +552,7 @@ export async function reviewChecklistItem(
     const items: Record<string, unknown> = {
       ...(progress?.items ?? initialItems(input.stage)),
     };
-    const doneItemKeys = Object.entries(items).flatMap(([key, value]) => {
-      const item = value as z.infer<typeof itemProgressSchema>;
-      const status = item.status ?? (item.completed ? "done" : "todo");
-      return status === "done" && !item.reviewedAt ? [key] : [];
-    });
-    if (input.action === "approve" && !doneItemKeys.length) {
-      throw new Error("There are no unreviewed tasks in Done.");
-    }
-    if (input.action === "approve") {
-      for (const itemKey of doneItemKeys) {
-        const item = items[itemKey] as z.infer<typeof itemProgressSchema>;
-        items[itemKey] = {
-          ...item,
-          completed: true,
-          status: "done",
-          reviewedAt: FieldValue.serverTimestamp(),
-          reviewedBy: userId,
-        };
-      }
-    }
+    if (input.action === "approve") throw new Error("Approve the stage instead.");
     transaction.set(
       progressRef,
       {
@@ -551,6 +570,7 @@ export async function reviewChecklistItem(
               ],
             }
           : {}),
+        reviewStatus: "active",
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,
       },
@@ -615,7 +635,7 @@ export async function createChecklistItem(
             key,
             label: input.label,
             type: input.type,
-            createdAt: FieldValue.serverTimestamp(),
+            createdAt: Timestamp.now(),
             createdBy: userId,
           },
         ],
@@ -684,6 +704,10 @@ export async function completeStage(
     });
     if (!requiredComplete)
       throw new Error("Complete all required checklist items first.");
+    const reviewStatus = progress?.reviewStatus ?? "underReview";
+    if (reviewStatus !== "underReview") {
+      throw new Error("The stage must be under mentor review before approval.");
+    }
 
     const currentIndex = internshipStages.findIndex(
       (stage) => stage.value === input.stage,

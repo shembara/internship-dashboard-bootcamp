@@ -108,7 +108,7 @@ describe("checklist access", () => {
     });
   });
 
-  it("allows the assigned intern to add tasks but not review them", () => {
+  it("allows the assigned intern to move tasks but not add or review them", () => {
     expect(
       resolveChecklistAccess(
         internship(),
@@ -119,7 +119,8 @@ describe("checklist access", () => {
       ),
     ).toMatchObject({
       completionActors: ["intern"],
-      canAddTasks: true,
+      canMoveTasks: true,
+      canAddTasks: false,
       canReviewTasks: false,
       isIntern: true,
     });
@@ -152,7 +153,7 @@ describe("checklist access", () => {
     ).toThrow("cannot view this internship");
   });
 
-  it("allows an active teammate assignment to work with the task board", () => {
+  it("keeps task management restricted to the assigned mentor or manager", () => {
     const access = resolveChecklistAccess(
       internship(),
       "mentor-1",
@@ -163,9 +164,9 @@ describe("checklist access", () => {
 
     expect(access.completionActors).toEqual([]);
     expect(access.canAdvance).toBe(false);
-    expect(access.canMoveTasks).toBe(true);
-    expect(access.canAddTasks).toBe(true);
-    expect(access.canReviewTasks).toBe(true);
+    expect(access.canMoveTasks).toBe(false);
+    expect(access.canAddTasks).toBe(false);
+    expect(access.canReviewTasks).toBe(false);
   });
 
   it("rejects a manager when the current assignment snapshot has been removed", () => {

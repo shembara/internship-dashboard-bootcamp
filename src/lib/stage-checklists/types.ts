@@ -30,6 +30,8 @@ export type StageChecklistDto = {
   canAddTasks: boolean;
   canReviewDoneTasks: boolean;
   latestReviewRequest?: string;
+  reviewStatus: "active" | "underReview" | "completed";
+  canViewAllStages: boolean;
 };
 
 export type InternshipLifecycleChecklistDto = InternshipLifecycle & {
