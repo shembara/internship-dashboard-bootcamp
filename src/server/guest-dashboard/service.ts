@@ -48,7 +48,7 @@ function dateInApplicationTimeZone(value: Timestamp) {
 function calendarDayDistance(from: string, to: string) {
   return Math.round(
     (Date.parse(`${to}T00:00:00.000Z`) - Date.parse(`${from}T00:00:00.000Z`)) /
-      86_400_000,
+    86_400_000,
   );
 }
 
@@ -117,13 +117,48 @@ function internshipDayCount(
 
 export async function getGuestDashboard(): Promise<GuestDashboardDto> {
   const internships = await adminFirestore.collection("internships").get();
-  const items = await Promise.all(
-    internships.docs.map(async (document): Promise<GuestDashboardItem> => {
+  if (internships.empty) {
+    return {
+      items: [],
+      metrics: { total: 0, active: 0, paused: 0, completed: 0 },
+    };
+  }
+
+  // 1. Batch fetch all intern user documents at once
+  const internIds = [
+    ...new Set(
+      internships.docs
+        .map((d) => (d.data().internId as string) ?? "")
+        .filter(Boolean),
+    ),
+  ];
+  const internDocs = internIds.length
+    ? await adminFirestore.getAll(
+      ...internIds.map((id) => adminFirestore.collection("users").doc(id)),
+    )
+    : [];
+  const internNames = new Map(
+    internDocs.map((doc) => [
+      doc.id,
+      (doc.data()?.displayName as string) ?? "Unknown intern",
+    ]),
+  );
+
+  type DraftItem = {
+    item: GuestDashboardItem;
+    teamId?: string;
+    mentorUserId?: string;
+    managerUserId?: string;
+  };
+
+  // 2. Fetch subcollections for each internship in parallel
+  const draftItems: DraftItem[] = await Promise.all(
+    internships.docs.map(async (document) => {
       const internshipData = document.data();
       const internship = parseInternshipDocument(internshipData);
       const ref = document.ref;
+
       const [
-        intern,
         placements,
         teammates,
         managers,
@@ -133,7 +168,6 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         achievements,
         history,
       ] = await Promise.all([
-        adminFirestore.collection("users").doc(internship.internId).get(),
         ref.collection("teamPlacements").get(),
         ref.collection("teammateAssignments").get(),
         ref.collection("managerAssignments").get(),
@@ -143,145 +177,191 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         ref.collection("achievements").orderBy("achievedOn", "desc").limit(100).get(),
         ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
       ]);
+
       const mentorIds = teammates.docs
         .map((entry) => entry.data())
         .filter((entry) => current(entry) && entry.responsibilities?.includes("mentor"))
         .map((entry) => entry.teammateUserId as string);
+
       const managerIds = managers.docs
         .map((entry) => entry.data())
         .filter((entry) => isCurrentManagerAssignment(entry))
         .map((entry) => entry.userId as string);
-      const userReferences = [...new Set([...mentorIds, ...managerIds])].map((id) =>
-        adminFirestore.collection("users").doc(id),
-      );
-      const users = userReferences.length
-        ? await adminFirestore.getAll(...userReferences)
-        : [];
-      const names = new Map(
-        users.map((user) => [user.id, user.data()?.displayName as string | undefined]),
-      );
+
       const placement = placements.docs.map((entry) => entry.data()).find(current);
-      const team = placement
-        ? await adminFirestore.collection("teams").doc(placement.teamId).get()
-        : undefined;
+
       const template = getStageChecklistTemplate(internship.currentStage);
       const required = template.items.filter((item) => item.type === "required");
       const completed = required.filter(
         (item) => stage.data()?.items?.[item.key]?.completed,
       ).length;
+
       const feedback = checkIns.docs
         .map((entry) => entry.data())
         .find((entry) => entry.state === "shared");
+
       const statusChanges = history.docs.flatMap((entry) => {
         const data = entry.data();
         return data.changedAt instanceof Timestamp && isInternshipStatus(data.newStatus)
           ? [{ status: data.newStatus, changedAt: data.changedAt }]
           : [];
       });
+
       const startedAt =
         internshipData.createdAt instanceof Timestamp
           ? internshipData.createdAt
           : internship.startsAt;
+
       const dayOfInternship = internshipDayCount(
         startedAt,
         internship.status,
         internship.endsAt,
         statusChanges,
       );
+
+      const timeline = [
+        ...(() => {
+          const occurredAt = iso(internshipData.createdAt);
+          return occurredAt
+            ? [{ id: "internship:created", occurredAt, title: "Internship created" }]
+            : [];
+        })(),
+        ...history.docs.flatMap((entry) => {
+          const data = entry.data();
+          const occurredAt = iso(data.changedAt);
+          return occurredAt && typeof data.newStatus === "string"
+            ? [
+              {
+                id: `status:${entry.id}`,
+                occurredAt,
+                title: `Internship ${data.newStatus}`,
+              },
+            ]
+            : [];
+        }),
+        ...stageProgress.docs.flatMap((entry) => {
+          const data = entry.data();
+          const occurredAt = iso(data.completedAt);
+          return occurredAt
+            ? [
+              {
+                id: `stage:${entry.id}`,
+                occurredAt,
+                title: `${entry.id} stage completed`,
+              },
+            ]
+            : [];
+        }),
+        ...achievements.docs.flatMap((entry) => {
+          const data = entry.data();
+          return !data.archivedAt &&
+            typeof data.title === "string" &&
+            typeof data.achievedOn === "string"
+            ? [
+              {
+                id: `achievement:${entry.id}`,
+                occurredAt: `${data.achievedOn}T00:00:00.000Z`,
+                title: data.title,
+                ...(typeof data.category === "string"
+                  ? { description: data.category }
+                  : {}),
+              },
+            ]
+            : [];
+        }),
+      ].sort(
+        (a, b) =>
+          b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id),
+      );
+
+      const parsedAchievements = achievements.docs.flatMap((entry) => {
+        const data = entry.data();
+        return data.archivedAt
+          ? []
+          : [
+            {
+              id: entry.id,
+              title: data.title as string,
+              category: data.category as string,
+              achievedOn: data.achievedOn as string,
+            },
+          ];
+      });
+
       return {
-        id: document.id,
-        internName:
-          (intern.data()?.displayName as string | undefined) ?? "Unknown intern",
-        status: internship.status,
-        currentStage: internship.currentStage,
-        startsAt: startedAt.toDate().toISOString(),
-        dayOfInternship,
-        project: team?.data()?.title as string | undefined,
-        mentor: mentorIds[0]
-          ? (names.get(mentorIds[0]) ?? "Unknown mentor")
-          : undefined,
-        manager: managerIds[0]
-          ? (names.get(managerIds[0]) ?? "Unknown manager")
-          : undefined,
-        requiredCompletedCount: completed,
-        requiredTotalCount: required.length,
-        timeline: [
-          ...(() => {
-            const occurredAt = iso(internshipData.createdAt);
-            return occurredAt
-              ? [{ id: "internship:created", occurredAt, title: "Internship created" }]
-              : [];
-          })(),
-          ...history.docs.flatMap((entry) => {
-            const data = entry.data();
-            const occurredAt = iso(data.changedAt);
-            return occurredAt && typeof data.newStatus === "string"
-              ? [
-                  {
-                    id: `status:${entry.id}`,
-                    occurredAt,
-                    title: `Internship ${data.newStatus}`,
-                  },
-                ]
-              : [];
-          }),
-          ...stageProgress.docs.flatMap((entry) => {
-            const data = entry.data();
-            const occurredAt = iso(data.completedAt);
-            return occurredAt
-              ? [
-                  {
-                    id: `stage:${entry.id}`,
-                    occurredAt,
-                    title: `${entry.id} stage completed`,
-                  },
-                ]
-              : [];
-          }),
-          ...achievements.docs.flatMap((entry) => {
-            const data = entry.data();
-            return !data.archivedAt &&
-              typeof data.title === "string" &&
-              typeof data.achievedOn === "string"
-              ? [
-                  {
-                    id: `achievement:${entry.id}`,
-                    occurredAt: `${data.achievedOn}T00:00:00.000Z`,
-                    title: data.title,
-                    ...(typeof data.category === "string"
-                      ? { description: data.category }
-                      : {}),
-                  },
-                ]
-              : [];
-          }),
-        ].sort(
-          (a, b) =>
-            b.occurredAt.localeCompare(a.occurredAt) || a.id.localeCompare(b.id),
-        ),
-        mentorFeedback: feedback
-          ? {
+        teamId: placement?.teamId as string | undefined,
+        mentorUserId: mentorIds[0],
+        managerUserId: managerIds[0],
+        item: {
+          id: document.id,
+          internName: internNames.get(internship.internId) ?? "Unknown intern",
+          status: internship.status,
+          currentStage: internship.currentStage,
+          startsAt: startedAt.toDate().toISOString(),
+          dayOfInternship,
+          requiredCompletedCount: completed,
+          requiredTotalCount: required.length,
+          timeline,
+          mentorFeedback: feedback
+            ? {
               progressSummary: feedback.progressSummary,
               strengthsObserved: feedback.strengthsObserved,
               sharedAt: iso(feedback.sharedAt),
             }
-          : undefined,
-        achievements: achievements.docs.flatMap((entry) => {
-          const data = entry.data();
-          return data.archivedAt
-            ? []
-            : [
-                {
-                  id: entry.id,
-                  title: data.title,
-                  category: data.category,
-                  achievedOn: data.achievedOn,
-                },
-              ];
-        }),
+            : undefined,
+          achievements: parsedAchievements,
+        },
       };
     }),
   );
+
+  // 3. Batch fetch team titles and staff names
+  const teamIds = [
+    ...new Set(
+      draftItems.map((i) => i.teamId).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const staffIds = [
+    ...new Set(
+      draftItems
+        .flatMap((i) => [i.mentorUserId, i.managerUserId])
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [teamDocs, staffDocs] = await Promise.all([
+    teamIds.length
+      ? adminFirestore.getAll(
+        ...teamIds.map((id) => adminFirestore.collection("teams").doc(id)),
+      )
+      : [],
+    staffIds.length
+      ? adminFirestore.getAll(
+        ...staffIds.map((id) => adminFirestore.collection("users").doc(id)),
+      )
+      : [],
+  ]);
+
+  const teamNames = new Map(
+    teamDocs.map((doc) => [doc.id, (doc.data()?.title as string) ?? "Unknown team"]),
+  );
+  const staffNames = new Map(
+    staffDocs.map((doc) => [
+      doc.id,
+      (doc.data()?.displayName as string) ?? "Unknown user",
+    ]),
+  );
+
+  // 4. Resolve project, mentor, and manager names onto items
+  const items: GuestDashboardItem[] = draftItems.map(
+    ({ item, teamId, mentorUserId, managerUserId }) => ({
+      ...item,
+      project: teamId ? teamNames.get(teamId) : undefined,
+      mentor: mentorUserId ? staffNames.get(mentorUserId) : undefined,
+      manager: managerUserId ? staffNames.get(managerUserId) : undefined,
+    }),
+  );
+
   return {
     items: items.sort((a, b) => a.internName.localeCompare(b.internName)),
     metrics: {

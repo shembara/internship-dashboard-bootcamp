@@ -198,30 +198,41 @@ export async function listManagedInternships(
     .where("userId", "==", managerId)
     .get();
 
-  const results = await Promise.all(
-    assignments.docs.map(async (assignment) => {
-      const internship = await assignment.ref.parent.parent?.get();
-      if (!internship?.exists) return undefined;
-      const data = parseInternshipDocument(internship.data());
-      const intern = await adminFirestore.collection("users").doc(data.internId).get();
-      return {
-        id: internship.id,
-        status: data.status,
-        currentStage: data.currentStage,
-        internName: intern.exists
-          ? (intern.data()?.displayName as string)
-          : "Unknown intern",
-        progressSummary: await getManagerProgressSummary(
-          internship.ref,
-          data,
-          managerId,
-        ),
-      };
-    }),
+  if (assignments.empty) return [];
+
+  // Batch 1: Get all internship references
+  const internshipRefs = [
+    ...new Set(
+      assignments.docs.flatMap((assignment) => {
+        const ref = assignment.ref.parent.parent;
+        return ref ? [ref] : [];
+      }),
+    ),
+  ];
+
+  const internshipDocs = await adminFirestore.getAll(...internshipRefs);
+  const activeInternships = internshipDocs.flatMap((doc) => {
+    if (!doc.exists) return [];
+    return [{ ref: doc.ref, data: parseInternshipDocument(doc.data()) }];
+  });
+
+  // Batch 2: Get all intern user documents at once
+  const internIds = [...new Set(activeInternships.map((i) => i.data.internId))];
+  const internDocs = internIds.length
+    ? await adminFirestore.getAll(...internIds.map((id) => adminFirestore.collection("users").doc(id)))
+    : [];
+  const internNames = new Map(
+    internDocs.map((doc) => [doc.id, (doc.data()?.displayName as string) ?? "Unknown intern"]),
   );
 
-  return results.filter((result): result is NonNullable<typeof result> =>
-    Boolean(result),
+  return Promise.all(
+    activeInternships.map(async ({ ref, data }) => ({
+      id: ref.id,
+      status: data.status,
+      currentStage: data.currentStage,
+      internName: internNames.get(data.internId) ?? "Unknown intern",
+      progressSummary: await getManagerProgressSummary(ref, data, managerId),
+    })),
   );
 }
 

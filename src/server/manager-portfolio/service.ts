@@ -275,26 +275,27 @@ async function buildPortfolioItem(
       assignment.responsibilities.includes("mentor") &&
       isOngoingOrScheduled(assignment as DateRange),
   );
-  const [users, teams] = await Promise.all([
+
+  const placementList = placements.docs.map((d) => placementSchema.parse(d.data()));
+  const placementTeamIds = [...new Set(placementList.map((p) => p.teamId))];
+
+  const [users, teamDocs] = await Promise.all([
     getUserSummaries(currentMentors.map((assignment) => assignment.teammateUserId)),
-    Promise.all(
-      placements.docs.map(async (document) => {
-        const placement = placementSchema.parse(document.data());
-        const team = await adminFirestore
-          .collection("teams")
-          .doc(placement.teamId)
-          .get();
-        return [
-          document.id,
-          placement,
-          team.data()?.title as string | undefined,
-        ] as const;
-      }),
-    ),
+    placementTeamIds.length
+      ? adminFirestore.getAll(
+        ...placementTeamIds.map((id) => adminFirestore.collection("teams").doc(id)),
+      )
+      : [],
   ]);
-  const currentPlacement = teams
-    .filter(([, placement]) => isOngoingOrScheduled(placement as DateRange))
-    .sort((a, b) => b[1].startsAt.toMillis() - a[1].startsAt.toMillis())[0];
+
+  const teamTitles = new Map(
+    teamDocs.map((doc) => [doc.id, doc.data()?.title as string | undefined]),
+  );
+
+  const currentPlacement = placementList
+    .filter((placement) => isOngoingOrScheduled(placement as DateRange))
+    .sort((a, b) => b.startsAt.toMillis() - a.startsAt.toMillis())[0];
+
   const checklist = await getStageChecklist(internshipRef, internship, managerId);
   const progressHub = await getManagerProgressHub(
     internshipRef,
@@ -326,8 +327,8 @@ async function buildPortfolioItem(
     mentorUserIds: currentMentors.map((assignment) => assignment.teammateUserId),
     currentPlacement: currentPlacement
       ? {
-        teamId: currentPlacement[1].teamId,
-        teamTitle: currentPlacement[2] ?? "Unknown team",
+        teamId: currentPlacement.teamId,
+        teamTitle: teamTitles.get(currentPlacement.teamId) ?? "Unknown team",
       }
       : undefined,
     reflectionState: progressHub.summary.reflectionState,

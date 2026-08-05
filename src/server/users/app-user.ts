@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 
-export const applicationRoles = ["manager", "intern", "teammate"] as const;
+export const applicationRoles = ["manager", "intern", "teammate", "guest"] as const;
 export type ApplicationRole = (typeof applicationRoles)[number];
 
 const identitySchema = z.object({
