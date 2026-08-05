@@ -420,25 +420,6 @@ export function StageChecklist({
                   />
                 ))}
               </div>
-              {column.status === "done" && checklist.canReviewDoneTasks ? (
-                <div className="mt-3 border-t pt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="w-full"
-                    disabled={isPending}
-                    onClick={() =>
-                      mutate(
-                        `/api/internships/${internshipId}/stage-checklist/items/review`,
-                        { stage: checklist.stage, action: "approve" },
-                        "review-done",
-                      )
-                    }
-                  >
-                    {pending === "review-done" ? "Saving…" : "Confirm mentor review"}
-                  </Button>
-                </div>
-              ) : null}
             </section>
           );
         })}
