@@ -46,7 +46,9 @@ export async function getOptionalFirebaseSessionUser(): Promise<
   }
 
   try {
-    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+    // Pass checkRevoked = false in development to avoid an HTTPS network round-trip on every page load
+    const checkRevoked = process.env.NODE_ENV === "production";
+    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, checkRevoked);
     return toAuthenticatedUser(decodedToken);
   } catch {
     return undefined;

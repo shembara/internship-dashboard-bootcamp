@@ -232,31 +232,47 @@ export async function listTeammateInternships(
     .collectionGroup("teammateAssignments")
     .where("teammateUserId", "==", teammateUserId)
     .get();
-  const internshipRefs = new Map(
-    assignments.docs.flatMap((assignment) => {
-      const internshipRef = assignment.ref.parent.parent;
-      return internshipRef ? [[internshipRef.id, internshipRef] as const] : [];
-    }),
-  );
-  const results = await Promise.all(
-    [...internshipRefs.values()].map(async (internshipRef) => {
-      const internship = await internshipRef.get();
-      if (!internship.exists) return undefined;
-      const data = parseInternshipDocument(internship.data());
-      const intern = await adminFirestore.collection("users").doc(data.internId).get();
-      return {
-        id: internship.id,
-        status: data.status,
-        currentStage: data.currentStage,
-        internName: intern.exists
-          ? (intern.data()?.displayName as string)
-          : "Unknown intern",
-      };
-    }),
+
+  const internshipRefs = [
+    ...new Set(
+      assignments.docs.flatMap((assignment) => {
+        const ref = assignment.ref.parent.parent;
+        return ref ? [ref] : [];
+      }),
+    ),
+  ];
+
+  if (!internshipRefs.length) return [];
+
+  // Batch 1: Fetch all parent internships in one call
+  const internshipDocs = await adminFirestore.getAll(...internshipRefs);
+  const parsedInternships = internshipDocs.flatMap((doc) => {
+    if (!doc.exists) return [];
+    return [{ id: doc.id, data: parseInternshipDocument(doc.data()) }];
+  });
+
+  // Batch 2: Fetch all intern user documents in one call
+  const internUserRefs = [
+    ...new Set(
+      parsedInternships.map((item) =>
+        adminFirestore.collection("users").doc(item.data.internId),
+      ),
+    ),
+  ];
+  const internDocs = internUserRefs.length
+    ? await adminFirestore.getAll(...internUserRefs)
+    : [];
+  const internNames = new Map(
+    internDocs.map((doc) => [doc.id, doc.data()?.displayName as string | undefined]),
   );
 
-  return results
-    .filter((result): result is NonNullable<typeof result> => Boolean(result))
+  return parsedInternships
+    .map(({ id, data }) => ({
+      id,
+      status: data.status,
+      currentStage: data.currentStage,
+      internName: internNames.get(data.internId) ?? "Unknown intern",
+    }))
     .sort((a, b) => a.internName.localeCompare(b.internName));
 }
 
