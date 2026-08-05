@@ -1,7 +1,8 @@
 import type { TimelineDto } from "@/lib/timeline/types";
+
 export function InternshipTimeline({ timeline }: { timeline: TimelineDto }) {
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+    <section id="internship-timeline" className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm scroll-mt-24">
       <div>
         <h2 className="text-lg font-semibold">Internship timeline</h2>
         <p className="mt-1 text-sm text-muted-foreground">
