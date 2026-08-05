@@ -7,6 +7,7 @@ const authenticationModeSchema = z.enum(["email-password-development", "google"]
 const serverEnvironmentSchema = z.object({
   appOrigin: z.string().url().optional(),
   authenticationMode: authenticationModeSchema,
+  firestoreDatabaseId: z.string().min(1),
   projectId: z.string().min(1),
   sessionCookieName: z.string().min(1),
   sessionMaxAgeSeconds: z.coerce.number().int().min(300).max(1_209_600),
@@ -61,6 +62,7 @@ export function getServerEnvironment(): ServerEnvironment {
       process.env.APP_ORIGIN ??
       (process.env.NODE_ENV === "production" ? undefined : "http://localhost:3000"),
     authenticationMode,
+    firestoreDatabaseId: process.env.FIRESTORE_DATABASE_ID ?? "(default)",
     projectId,
     sessionCookieName: process.env.SESSION_COOKIE_NAME ?? "__session",
     sessionMaxAgeSeconds: process.env.SESSION_MAX_AGE_SECONDS ?? "432000",

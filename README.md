@@ -102,6 +102,11 @@ to a service-account JSON file stored outside this repository. You do not need
 that key for the emulator-only commands when they are run with the emulator
 variables shown later.
 
+FIRESTORE_DATABASE_ID is optional. Leave it unset (or `(default)`) to use the
+project's default Firestore database. Set it to a named database ID (for
+example `europe`) to target a different Firestore database in the same
+project, such as a region-specific database created to reduce latency.
+
 Leave the SESSION_COOKIE_NAME and SESSION_MAX_AGE_SECONDS values from the
 template unchanged unless your teacher tells you otherwise. Do not uncomment
 the emulator variables for hosted work.
@@ -160,10 +165,17 @@ run:
 npm run deploy:firestore-indexes
 ```
 
-The command reads FIREBASE_PROJECT_ID and
-GOOGLE_APPLICATION_CREDENTIALS from .env.local. Index builds can be
-asynchronous, so wait until Firebase Console shows them as enabled before
-testing a page that needs them.
+The command reads FIREBASE_PROJECT_ID, GOOGLE_APPLICATION_CREDENTIALS, and
+FIRESTORE_DATABASE_ID from .env.local, so it targets whichever database is
+currently configured. Index builds can be asynchronous, so wait until Firebase
+Console shows them as enabled before testing a page that needs them.
+
+Security rules can be deployed the same way, without needing the Firebase CLI
+to be logged in:
+
+```bash
+npm run deploy:firestore-rules
+```
 
 ### 6.5 Start and verify hosted sign-in
 
