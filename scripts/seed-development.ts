@@ -110,6 +110,13 @@ const personas = [
     displayName: "Finley Review",
     roles: ["intern"],
   },
+  {
+    id: "guest",
+    uid: "development-guest",
+    email: "guest@fluxon.com",
+    displayName: "Sasha Guest",
+    roles: ["guest"],
+  },
 ] as const;
 
 for (const persona of personas) {
@@ -152,16 +159,16 @@ for (const persona of personas) {
 try {
   await auth.getUser("development-guest");
   await auth.updateUser("development-guest", {
-    displayName: "Gina Guest",
-    email: "guest@example.com",
+    displayName: "Sasha Guest",
+    email: "guest@fluxon.com",
     emailVerified: true,
     password: developmentPassword,
   });
 } catch {
   await auth.createUser({
     uid: "development-guest",
-    displayName: "Gina Guest",
-    email: "guest@example.com",
+    displayName: "Sasha Guest",
+    email: "guest@fluxon.com",
     emailVerified: true,
     password: developmentPassword,
   });

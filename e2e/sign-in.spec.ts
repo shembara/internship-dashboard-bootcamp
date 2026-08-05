@@ -17,10 +17,7 @@ test("guest persona cannot receive manager access", async ({ page }) => {
 
   await page.getByRole("button", { name: /authenticate as guest/i }).click();
 
-  await expect(page).toHaveURL(/\/forbidden$/);
-  await expect(
-    page.getByRole("heading", { name: "Access not granted" }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/guest$/);
 
   await page.goto("/manager");
   await expect(page).toHaveURL(/\/forbidden$/);
