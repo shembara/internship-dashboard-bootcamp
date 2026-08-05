@@ -9,7 +9,7 @@
   "overrides": {
     "@hono/node-server": "2.0.11",
     "@opentelemetry/core": "2.10.0",
-    "postcss": "8.5.22",
+    "postcss": "^8.5.22",
     "sharp": "0.35.3",
     "uuid": "11.1.1"
   },
@@ -30,6 +30,7 @@
     "test:e2e": "npm run seed:development && playwright test",
     "seed:development": "tsx scripts/seed-development.ts",
     "deploy:firestore-indexes": "tsx scripts/deploy-firestore-indexes.ts",
+    "deploy:firestore-rules": "tsx scripts/deploy-firestore-rules.ts",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
@@ -39,7 +40,7 @@
     "firebase": "^12.17.0",
     "firebase-admin": "^14.2.0",
     "lucide-react": "^1.26.0",
-    "next": "16.2.11",
+    "next": "^16.3.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",

@@ -46,7 +46,10 @@ describe("server-only Firestore boundary", () => {
     }
 
     const clientApp = initializeApp(firebase, "integration-client");
-    const clientFirestore = getFirestore(clientApp);
+    const clientFirestore = getFirestore(
+      clientApp,
+      process.env.FIRESTORE_DATABASE_ID ?? "(default)",
+    );
 
     await expect(getDoc(doc(clientFirestore, "users", userId))).rejects.toMatchObject({
       code: "permission-denied",

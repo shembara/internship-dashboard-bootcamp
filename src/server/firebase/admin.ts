@@ -35,4 +35,4 @@ function blockedFirestore(): Firestore {
 // Module imports remain safe for unit tests; actual database use fails before a request.
 export const adminFirestore = shouldBlockFirestoreForUnitTests()
   ? blockedFirestore()
-  : getFirestore(adminApp);
+  : getFirestore(adminApp, environment.firestoreDatabaseId);

@@ -39,6 +39,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
   const [attention, setAttention] = useState(portfolio.query.attention ?? "");
   const [mentorId, setMentorId] = useState(portfolio.query.mentorId ?? "");
   const [sort, setSort] = useState(portfolio.query.sort);
+  const [direction, setDirection] = useState(portfolio.query.direction);
 
   function navigate(page = 1) {
     const params = new URLSearchParams();
@@ -48,7 +49,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
     if (attention) params.set("attention", attention);
     if (mentorId) params.set("mentorId", mentorId);
     params.set("sort", sort);
-    params.set("direction", portfolio.query.direction);
+    params.set("direction", direction);
     params.set("page", String(page));
     params.set("pageSize", String(portfolio.query.pageSize));
     router.push(`${pathname}?${params.toString()}`);
@@ -169,6 +170,19 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             <option value="overdueActions">Overdue actions</option>
           </select>
         </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Direction
+          <select
+            value={direction}
+            onChange={(event) =>
+              setDirection(event.target.value as typeof direction)
+            }
+            className="h-10 rounded-lg border bg-background px-3"
+          >
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </label>
         <div className="flex items-end gap-2">
           <Button type="submit">Apply filters</Button>
           <Button
@@ -181,6 +195,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
               setAttention("");
               setMentorId("");
               setSort("internName");
+              setDirection("asc");
               router.push(pathname);
             }}
           >
