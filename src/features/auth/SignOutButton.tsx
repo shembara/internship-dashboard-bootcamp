@@ -7,7 +7,13 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getFirebaseClientAuth } from "@/lib/firebase/client";
 
-export function SignOutButton() {
+export function SignOutButton({
+  className,
+  showLabel = false,
+}: {
+  className?: string;
+  showLabel?: boolean;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -38,9 +44,10 @@ export function SignOutButton() {
         onClick={handleSignOut}
         size="sm"
         variant="ghost"
+        className={className}
       >
         <LogOut />
-        <span className="hidden sm:inline">Sign out</span>
+        <span className={showLabel ? undefined : "hidden sm:inline"}>Sign out</span>
       </Button>
       {error ? (
         <span className="sr-only" role="alert">

@@ -13,7 +13,7 @@ export default async function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-5 sm:p-8">
+    <main className="flex min-h-screen items-center justify-center bg-[#0b1014] p-5 sm:p-8">
       <SignInCard />
     </main>
   );

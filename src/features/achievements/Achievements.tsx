@@ -41,10 +41,13 @@ export function Achievements({
     router.refresh();
   }
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+    <section
+      className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#121a20] p-5 shadow-sm"
+      style={{ backgroundColor: "#121a20" }}
+    >
       <div>
         <h2 className="text-lg font-semibold">Achievements</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-[#9ca3af]">
           Meaningful outcomes and milestones from this internship.
         </p>
       </div>
@@ -82,7 +85,7 @@ export function Achievements({
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#9ca3af]">
           Achievements are read-only for this internship.
         </p>
       )}
@@ -94,9 +97,12 @@ export function Achievements({
       {data.achievements.length ? (
         <ul className="space-y-2">
           {data.achievements.map((achievement) => (
-            <li key={achievement.id} className="rounded-xl border p-3">
+            <li
+              key={achievement.id}
+              className="rounded-xl border border-white/[0.08] bg-[#19242c] p-3"
+            >
               <p className="font-medium">{achievement.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-sm text-[#9ca3af]">
                 {achievement.category} · {achievement.achievedOn} ·{" "}
                 {achievement.author.displayName}
               </p>
@@ -107,7 +113,7 @@ export function Achievements({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No achievements yet.</p>
+        <p className="text-sm text-[#9ca3af]">No achievements yet.</p>
       )}
     </section>
   );

@@ -8,11 +8,12 @@ import {
 } from "@/server/assignments/http";
 import { adminFirestore } from "@/server/firebase/admin";
 import { findAppUserByEmail, normalizeEmail } from "@/server/repositories/app-users";
+import { applicationRoleValues } from "@/lib/users/roles";
 
 const requestSchema = z.object({
   email: z.string().email(),
   roles: z
-    .array(z.enum(["manager", "intern", "teammate"]))
+    .array(z.enum(applicationRoleValues))
     .length(1, "Exactly one role must be selected."),
 });
 

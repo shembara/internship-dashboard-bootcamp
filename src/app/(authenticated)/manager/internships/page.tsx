@@ -30,15 +30,14 @@ export default async function ManagerInternshipsPage({
     listEligibleUsers("teammate"),
   ]);
   return (
-    <section className="space-y-6">
+    <section className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <Breadcrumbs items={[{ label: "Internships" }]} />
-          <p className="text-sm font-medium text-[var(--brand-strong)]">
-            Manager workspace
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Internships</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">
+            Manager Workspace
+          </h1>
+          <p className="mt-2 text-[#9ca3af]">
             Monitor lifecycle, operational progress, and assignment coverage for your
             interns.
           </p>
@@ -48,6 +47,7 @@ export default async function ManagerInternshipsPage({
             nativeButton={false}
             render={<Link href="/manager/people" />}
             variant="outline"
+            className="h-10 rounded-xl border-white/[0.08] bg-[#19242c] text-[#f3f4f6] hover:bg-[#23313a] hover:text-[#f3f4f6]"
           >
             People &amp; Access
           </Button>

@@ -40,7 +40,11 @@ import {
   getManagerProgressHub,
   getMentorProgressHub,
 } from "@/server/progress-hub/service";
-import { appUserSchema, type AppUser } from "@/server/users/app-user";
+import {
+  appUserSchema,
+  type AppUser,
+  type ApplicationRole,
+} from "@/server/users/app-user";
 import {
   teammateResponsibilities,
   type TeammateResponsibility,
@@ -290,26 +294,26 @@ export async function getCurrentInternshipForIntern(
 
   return selected
     ? await (async () => {
-      const checklist = await getStageChecklist(selected.ref, selected, internId);
-      const progressHub = await getInternProgressHub(
-        selected.ref,
-        selected,
-        internId,
-        checklist,
-      );
-      return {
-        id: selected.id,
-        status: selected.status,
-        currentStage: selected.currentStage,
-        checklist,
-        progressHub,
-      };
-    })()
+        const checklist = await getStageChecklist(selected.ref, selected, internId);
+        const progressHub = await getInternProgressHub(
+          selected.ref,
+          selected,
+          internId,
+          checklist,
+        );
+        return {
+          id: selected.id,
+          status: selected.status,
+          currentStage: selected.currentStage,
+          checklist,
+          progressHub,
+        };
+      })()
     : undefined;
 }
 
 export async function listEligibleUsers(
-  role: "intern" | "teammate" | "manager",
+  role: ApplicationRole,
 ): Promise<ApplicationUserOption[]> {
   const snapshot = await adminFirestore
     .collection("users")
@@ -503,8 +507,8 @@ export async function createInternship(
       transaction.get(managerRef),
       input.initialMentorUserId
         ? transaction.get(
-          adminFirestore.collection("users").doc(input.initialMentorUserId),
-        )
+            adminFirestore.collection("users").doc(input.initialMentorUserId),
+          )
         : Promise.resolve(undefined),
       transaction.get(conflictsQuery),
       transaction.get(guardRef),

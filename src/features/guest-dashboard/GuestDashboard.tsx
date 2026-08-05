@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { GuestDashboardDto } from "@/lib/guest-dashboard/types";
+import { ChevronDown, Sparkles, Trophy } from "lucide-react";
+
+import type {
+  GuestDashboardDto,
+  GuestDashboardItem,
+} from "@/lib/guest-dashboard/types";
 import { internshipStages, internshipStatuses } from "@/lib/internships/types";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 function label<T extends { value: string; label: string }>(
   items: readonly T[],
@@ -12,158 +17,286 @@ function label<T extends { value: string; label: string }>(
   return items.find((item) => item.value === value)?.label ?? value;
 }
 
-export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) {
-  const [open, setOpen] = useState<string>();
+function progress(completed: number, total: number) {
+  return total ? Math.round((completed / total) * 100) : 0;
+}
+
+function statusClass(status: GuestDashboardItem["status"]) {
+  return {
+    active: "border-[#00e5a3]/20 bg-[#00e5a3]/10 text-[#00e5a3]",
+    paused: "border-[#f59e0b]/20 bg-[#f59e0b]/10 text-[#fbbf24]",
+    completed: "border-[#a78bfa]/20 bg-[#a78bfa]/10 text-[#c4b5fd]",
+    cancelled: "border-[#f87171]/20 bg-[#f87171]/10 text-[#fca5a5]",
+  }[status];
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <section className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-[var(--brand-strong)]">
-          Executive workspace
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-          Internship overview
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Monitor internship lifecycle and progress across all interns.
-        </p>
+    <h3 className="text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
+      {children}
+    </h3>
+  );
+}
+
+function SkillMetrics({ item }: { item: GuestDashboardItem }) {
+  return (
+    <section className="rounded-xl border border-white/[0.08] bg-[#121a20] p-4">
+      <SectionTitle>📊 Skill metrics & achievements</SectionTitle>
+      <p className="mt-3 text-xs leading-5 text-[#9ca3af]">
+        Progress is calculated from completed required tasks in the current stage.
+      </p>
+      <ul className="mt-4 space-y-3">
+        {item.skills.map((skill) => (
+          <li key={skill.id}>
+            <div className="mb-1.5 flex justify-between gap-3 text-xs text-[#d1d5db]">
+              <span>{skill.label}</span>
+              <span className="text-[#9ca3af]">{skill.progress}%</span>
+            </div>
+            <div
+              aria-label={`${skill.label}: ${skill.progress}%`}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={skill.progress}
+              className="h-1.5 overflow-hidden rounded-full bg-[#27343c]"
+              role="progressbar"
+            >
+              <div
+                className="h-full rounded-full bg-[#00e5a3] transition-[width] duration-300"
+                style={{ width: `${skill.progress}%` }}
+              />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4 border-t border-white/[0.08] pt-4">
+        <div className="flex items-center gap-2 text-xs text-[#9ca3af]">
+          <Trophy className="size-3.5 text-[#f59e0b]" />
+          Achievements
+        </div>
+        {item.achievements.length ? (
+          <ul className="mt-2 space-y-1.5 text-sm text-[#f3f4f6]">
+            {item.achievements.map((achievement) => (
+              <li key={achievement.id}>
+                {achievement.title}
+                <span className="text-[#9ca3af]"> · {achievement.category}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-[#9ca3af]">No achievements yet.</p>
+        )}
       </div>
-      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Assigned internships", dashboard.metrics.total],
-          ["Active", dashboard.metrics.active],
-          ["Paused", dashboard.metrics.paused],
-          ["Completed", dashboard.metrics.completed],
-        ].map(([name, value]) => (
-          <div key={String(name)} className="rounded-2xl border bg-card p-4 shadow-sm">
-            <dt className="text-sm text-muted-foreground">{name}</dt>
-            <dd className="mt-1 text-2xl font-semibold">{value}</dd>
+    </section>
+  );
+}
+
+function Details({ item }: { item: GuestDashboardItem }) {
+  const completion = progress(item.requiredCompletedCount, item.requiredTotalCount);
+  return (
+    <div className="border-t border-white/[0.08] p-5 sm:p-6">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-xl border border-white/[0.08] bg-[#121a20] p-4">
+          <SectionTitle>💬 Mentor feedback</SectionTitle>
+          {item.mentorFeedback ? (
+            <div className="mt-3 space-y-2 text-sm leading-5">
+              <p className="text-[#f3f4f6]">{item.mentorFeedback.progressSummary}</p>
+              <p className="text-[#9ca3af]">{item.mentorFeedback.strengthsObserved}</p>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-[#9ca3af]">No mentor check-ins yet.</p>
+          )}
+        </section>
+        <section className="rounded-xl border border-white/[0.08] bg-[#121a20] p-4">
+          <SectionTitle>😊 Intern sentiment</SectionTitle>
+          {item.internSentiment ? (
+            <>
+              <div
+                className="mt-3 flex gap-1"
+                aria-label={`Sentiment: ${item.internSentiment.score} out of 10`}
+              >
+                {Array.from({ length: 10 }, (_, index) => (
+                  <span
+                    key={index}
+                    className={
+                      index < item.internSentiment!.score
+                        ? "text-[#00e5a3]"
+                        : "text-[#4b5563]"
+                    }
+                  >
+                    ●
+                  </span>
+                ))}
+              </div>
+              {item.internSentiment.note ? (
+                <p className="mt-2 text-sm text-[#9ca3af]">
+                  {item.internSentiment.note}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-[#9ca3af]">
+              No sentiment data submitted yet.
+            </p>
+          )}
+        </section>
+        <SkillMetrics item={item} />
+      </div>
+
+      <section className="mt-4 rounded-xl border border-white/[0.08] bg-[#121a20] p-4">
+        <SectionTitle>🕒 Internship lifecycle timeline</SectionTitle>
+        {item.timeline.length ? (
+          <ol className="mt-4 space-y-4 border-l border-[#31404a] pl-4">
+            {item.timeline.map((event) => (
+              <li key={event.id} className="relative text-sm">
+                <span className="absolute top-1.5 -left-[21px] size-2 rounded-full bg-[#00e5a3] shadow-[0_0_0_4px_#121a20]" />
+                <p className="text-[#f3f4f6]">{event.title}</p>
+                <p className="mt-1 text-xs text-[#9ca3af]">
+                  {formatDate(event.occurredAt)}
+                  {event.description ? ` · ${event.description}` : ""}
+                </p>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="mt-3 text-sm text-[#9ca3af]">No timeline entries yet.</p>
+        )}
+      </section>
+
+      <div className="mt-4 rounded-xl border border-white/[0.08] bg-[#121a20] p-4">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-sm text-[#d1d5db]">Required tasks in this stage</span>
+          <span className="text-sm font-medium text-[#f3f4f6]">
+            {item.requiredCompletedCount}/{item.requiredTotalCount}
+          </span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#27343c]">
+          <div
+            className="h-full rounded-full bg-[#00e5a3]"
+            style={{ width: `${completion}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) {
+  const [open, setOpen] = useState<string | undefined>(
+    dashboard.items.find((item) => item.status === "active")?.id,
+  );
+
+  const metrics = [
+    ["Active internships", dashboard.metrics.active, "text-[#00e5a3]"],
+    ["Completed", dashboard.metrics.completed, "text-[#f3f4f6]"],
+    ["Total assigned", dashboard.metrics.total, "text-[#f3f4f6]"],
+  ] as const;
+
+  return (
+    <section className="text-[#f3f4f6]">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Internship Overview</h1>
+          <p className="mt-2 text-[#9ca3af]">
+            Monitor internship lifecycle and progress across all interns.
+          </p>
+        </div>
+        <span className="rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#9ca3af]">
+          Data Guest (Guest Mode)
+        </span>
+      </header>
+
+      <dl className="mt-7 grid gap-3 sm:grid-cols-3">
+        {metrics.map(([name, value, valueClass]) => (
+          <div
+            key={name}
+            className="rounded-xl border border-white/[0.08] bg-[#121a20] p-4"
+          >
+            <dt className="text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
+              {name}
+            </dt>
+            <dd className={cn("mt-2 text-3xl font-semibold", valueClass)}>{value}</dd>
           </div>
         ))}
       </dl>
-      <div className="grid gap-3">
+
+      <div className="mt-6 space-y-4">
         {dashboard.items.map((item) => {
           const expanded = open === item.id;
+          const completion = progress(
+            item.requiredCompletedCount,
+            item.requiredTotalCount,
+          );
           return (
-            <article key={item.id} className="rounded-2xl border bg-card shadow-sm">
-              <div className="grid gap-4 p-10 lg:grid-cols-[minmax(180px,1fr)_minmax(0,2fr)_auto]">
+            <article
+              key={item.id}
+              className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#19242c] shadow-[0_20px_50px_rgba(0,0,0,0.18)]"
+            >
+              <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(220px,1.35fr)_minmax(180px,0.85fr)_auto] lg:items-center">
                 <div>
-                  <h2 className="text-lg font-semibold">{item.internName}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Started {formatDate(item.startsAt)}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-semibold">{item.internName}</h2>
+                    <span
+                      className={cn(
+                        "rounded-md border px-2 py-0.5 text-xs",
+                        statusClass(item.status),
+                      )}
+                    >
+                      {label(internshipStatuses, item.status)}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-[#9ca3af]">
+                    Started: {formatDate(item.startsAt)} · Project:{" "}
+                    {item.project ?? "Unassigned"}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Project: {item.project ?? "Unassigned"}
+                  <p className="mt-1 text-sm text-[#9ca3af]">
+                    Mentor: {item.mentor ?? "None"} · Manager: {item.manager ?? "None"}
                   </p>
                 </div>
-                <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                  <div>
-                    <dt className="text-muted-foreground">Status</dt>
-                    <dd>{label(internshipStatuses, item.status)}</dd>
+                <div>
+                  <p className="text-xs text-[#9ca3af]">Current stage</p>
+                  <p className="mt-1 text-sm font-medium text-[#f3f4f6]">
+                    {label(internshipStages, item.currentStage)}
+                  </p>
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#27343c]">
+                    <div
+                      className="h-full rounded-full bg-[#00e5a3]"
+                      style={{ width: `${completion}%` }}
+                    />
                   </div>
-                  <div>
-                    <dt className="text-muted-foreground">Current stage</dt>
-                    <dd>{label(internshipStages, item.currentStage)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Tasks count</dt>
-                    <dd>
-                      {item.requiredCompletedCount}/{item.requiredTotalCount} required
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Mentor</dt>
-                    <dd>{item.mentor ?? "None"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Manager</dt>
-                    <dd>{item.manager ?? "None"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Length of internship</dt>
-                    <dd>{item.dayOfInternship} days</dd>
-                  </div>
-                </dl>
+                  <p className="mt-2 text-xs text-[#9ca3af]">
+                    {item.requiredCompletedCount}/{item.requiredTotalCount} tasks
+                    required · Day {item.dayOfInternship}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  className="h-10 rounded-lg border px-3 text-sm font-medium"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-white/[0.08] bg-[#121a20] px-3 text-sm font-medium text-[#f3f4f6] transition-colors hover:bg-[#27343c]"
                   aria-expanded={expanded}
+                  aria-controls={`internship-details-${item.id}`}
                   onClick={() => setOpen(expanded ? undefined : item.id)}
                 >
                   {expanded ? "Hide details" : "Details"}
+                  <ChevronDown
+                    className={cn(
+                      "size-4 transition-transform",
+                      expanded && "rotate-180",
+                    )}
+                  />
                 </button>
               </div>
               {expanded ? (
-                <div className="grid gap-5 border-t p-5 md:grid-cols-2">
-                  <section>
-                    <h3 className="font-semibold">Internship lifecycle timeline</h3>
-                    {item.timeline.length ? (
-                      <ul className="mt-3 space-y-2 text-sm">
-                        {item.timeline.map((event) => (
-                          <li key={event.id}>
-                            {formatDate(event.occurredAt)} · {event.title}
-                            {event.description ? ` · ${event.description}` : ""}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        No timeline entries yet.
-                      </p>
-                    )}
-                  </section>
-                  <section>
-                    <h3 className="font-semibold">Mentor feedback about intern</h3>
-                    {item.mentorFeedback ? (
-                      <div className="mt-2 space-y-1 text-sm">
-                        <p>{item.mentorFeedback.progressSummary}</p>
-                        <p className="text-muted-foreground">
-                          {item.mentorFeedback.strengthsObserved}
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        No mentor check-ins yet.
-                      </p>
-                    )}
-                  </section>
-                  <section>
-                    <h3 className="font-semibold">Intern feeling about internship</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Not available yet.
-                    </p>
-                  </section>
-                  <section>
-                    <h3 className="font-semibold">Skill metrics</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Not available yet.
-                    </p>
-                  </section>
-                  <section className="md:col-span-2">
-                    <h3 className="font-semibold">Achievements</h3>
-                    {item.achievements.length ? (
-                      <ul className="mt-3 space-y-2 text-sm">
-                        {item.achievements.map((achievement) => (
-                          <li key={achievement.id}>
-                            {achievement.title} · {achievement.category} ·{" "}
-                            {formatDate(achievement.achievedOn)}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        No achievements yet.
-                      </p>
-                    )}
-                  </section>
+                <div id={`internship-details-${item.id}`}>
+                  <Details item={item} />
                 </div>
               ) : null}
             </article>
           );
         })}
         {!dashboard.items.length ? (
-          <div className="rounded-2xl border border-dashed p-8 text-center">
-            <h2 className="font-semibold">No internships available</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-dashed border-white/[0.16] bg-[#121a20] p-8 text-center">
+            <Sparkles className="mx-auto size-5 text-[#00e5a3]" />
+            <h2 className="mt-3 font-semibold">No internships available</h2>
+            <p className="mt-2 text-sm text-[#9ca3af]">
               Internship information will appear here when it is available.
             </p>
           </div>

@@ -24,6 +24,13 @@ function dashboard(): GuestDashboardDto {
         manager: "Katherine Johnson",
         requiredCompletedCount: 0,
         requiredTotalCount: 0,
+        skills: [
+          {
+            id: "technical-understanding",
+            label: "Technical understanding",
+            progress: 0,
+          },
+        ],
         timeline: [
           {
             id: "internship:created",
@@ -57,11 +64,10 @@ describe("GuestDashboard", () => {
   it("shows the start date and completed internship duration", () => {
     render(<GuestDashboard dashboard={dashboard()} />);
 
-    expect(screen.getByText("Started 08/03/2026")).toBeTruthy();
-    expect(screen.getByText("Length of internship")).toBeTruthy();
-    expect(screen.getByText("10 days")).toBeTruthy();
-    expect(screen.getByText("Grace Hopper")).toBeTruthy();
-    expect(screen.getByText("Katherine Johnson")).toBeTruthy();
+    expect(screen.getByText(/Started:/)).toBeTruthy();
+    expect(screen.getByText(/Day 10/)).toBeTruthy();
+    expect(screen.getByText(/Grace Hopper/)).toBeTruthy();
+    expect(screen.getByText(/Katherine Johnson/)).toBeTruthy();
   });
 
   it("shows all internship profile events when details are expanded", () => {
@@ -71,6 +77,18 @@ describe("GuestDashboard", () => {
     expect(screen.getByText(/Internship created/)).toBeTruthy();
     expect(screen.getByText(/Internship active/)).toBeTruthy();
     expect(screen.getByText(/onboarding stage completed/)).toBeTruthy();
-    expect(screen.getByText(/Made a deal · collaboration/)).toBeTruthy();
+    expect(screen.getByText("Made a deal")).toBeTruthy();
+    expect(screen.getByText(/collaboration/)).toBeTruthy();
+  });
+
+  it("shows accessible skill progress bars in the expanded profile", () => {
+    render(<GuestDashboard dashboard={dashboard()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Details" }));
+
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Technical understanding: 0%" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("0");
   });
 });

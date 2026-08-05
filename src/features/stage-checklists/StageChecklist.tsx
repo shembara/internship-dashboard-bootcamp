@@ -20,16 +20,16 @@ function ChecklistSection({
 }) {
   return (
     <section className="space-y-2">
-      <h3 className="font-semibold">{title}</h3>
+      <h3 className="font-semibold text-[#f3f4f6]">{title}</h3>
       <ul className="space-y-2">
         {items.map((item) => (
           <li
             key={item.key}
-            className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+            className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.08] bg-[#19242c] p-3 text-sm"
           >
             <span>
               {item.label}
-              <span className="text-muted-foreground">
+              <span className="text-[#9ca3af]">
                 {" "}
                 · {item.completed ? "Completed" : "Not completed"}
               </span>
@@ -87,7 +87,7 @@ export function StageChecklist({
   }
   return (
     <section
-      className="mt-6 space-y-5 border-t pt-5"
+      className="mt-6 space-y-5 border-t border-white/[0.08] pt-5"
       aria-labelledby="stage-checklist-heading"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -95,12 +95,12 @@ export function StageChecklist({
           <h2 id="stage-checklist-heading" className="text-lg font-semibold">
             {checklist.stageLabel} checklist
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-[#9ca3af]">
             {checklist.requiredCompletedCount} of {checklist.requiredTotalCount}{" "}
             required tasks completed
           </p>
           {checklist.isStageCompleted ? (
-            <p className="mt-1 text-sm font-medium text-[var(--brand-strong)]">
+            <p className="mt-1 text-sm font-medium text-[#00e5a3]">
               Stage completed
               {checklist.stage === "finalReview"
                 ? ". All lifecycle stages are complete and the internship is awaiting a manager status decision."
@@ -124,7 +124,7 @@ export function StageChecklist({
               {pending === "stage" ? "Completing…" : "Complete stage"}
             </Button>
             {!checklist.readyToComplete ? (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#9ca3af]">
                 Complete all required tasks to advance.
               </p>
             ) : null}
@@ -132,15 +132,16 @@ export function StageChecklist({
         ) : null}
       </div>
       <div
-        className="h-2 overflow-hidden rounded-full bg-muted"
+        className="h-2 overflow-hidden rounded-full bg-[#27343c]"
         aria-label={`${checklist.requiredCompletedCount} of ${checklist.requiredTotalCount} required tasks completed`}
       >
         <div
-          className="h-full bg-[var(--brand)]"
+          className="h-full bg-[#00e5a3]"
           style={{
             width: `${
               checklist.requiredTotalCount
-                ? (checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100
+                ? (checklist.requiredCompletedCount / checklist.requiredTotalCount) *
+                  100
                 : 100
             }%`,
           }}
@@ -155,6 +156,7 @@ export function StageChecklist({
               type="button"
               size="sm"
               variant="outline"
+              className="border-white/[0.12] bg-[#121a20] text-[#f3f4f6] hover:bg-[#27343c] hover:text-[#f3f4f6]"
               disabled={isPending}
               onClick={() =>
                 mutate(
@@ -186,6 +188,7 @@ export function StageChecklist({
               type="button"
               size="sm"
               variant="outline"
+              className="border-white/[0.12] bg-[#121a20] text-[#f3f4f6] hover:bg-[#27343c] hover:text-[#f3f4f6]"
               disabled={isPending}
               onClick={() =>
                 mutate(

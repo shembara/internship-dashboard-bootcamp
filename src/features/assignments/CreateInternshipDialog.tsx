@@ -18,7 +18,10 @@ export function CreateInternshipDialog({
   return (
     <Modal
       trigger={
-        <Button type="button">
+        <Button
+          type="button"
+          className="h-10 rounded-xl bg-[#00e5a3] font-semibold text-[#0b1014] hover:bg-[#00c98f]"
+        >
           <Plus data-icon="inline-start" /> Create internship
         </Button>
       }

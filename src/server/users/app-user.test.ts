@@ -24,6 +24,12 @@ describe("appUserSchema", () => {
     ).toEqual(["manager", "teammate"]);
   });
 
+  it("accepts guest application users", () => {
+    expect(appUserSchema.parse({ ...validUser, roles: ["guest"] }).roles).toEqual([
+      "guest",
+    ]);
+  });
+
   it("rejects application users without a role", () => {
     expect(() => appUserSchema.parse({ ...validUser, roles: [] })).toThrow();
   });

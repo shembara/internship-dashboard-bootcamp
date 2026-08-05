@@ -12,6 +12,11 @@ export type GuestDashboardItem = {
   manager?: string;
   requiredCompletedCount: number;
   requiredTotalCount: number;
+  skills: Array<{
+    id: string;
+    label: string;
+    progress: number;
+  }>;
   timeline: Array<{
     id: string;
     occurredAt: string;
@@ -22,6 +27,10 @@ export type GuestDashboardItem = {
     progressSummary: string;
     strengthsObserved: string;
     sharedAt?: string;
+  };
+  internSentiment?: {
+    score: number;
+    note?: string;
   };
   achievements: Array<{
     id: string;

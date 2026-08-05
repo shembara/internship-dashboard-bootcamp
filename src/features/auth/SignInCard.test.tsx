@@ -12,7 +12,7 @@ describe("SignInCard", () => {
     vi.stubEnv("NEXT_PUBLIC_AUTHENTICATION_MODE", "email-password-development");
     const markup = renderToStaticMarkup(<SignInCard />);
 
-    expect(markup).toContain("Internship Dashboard");
+    expect(markup).toContain("Sign in to Internship Platform");
     expect(markup).toContain("Authenticate as manager");
     expect(markup).toContain("Authenticate as guest");
     expect(markup).toContain("manager@fluxon.com");

@@ -64,14 +64,14 @@ export function CreateInternshipForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <label className="grid gap-2 text-sm font-medium">
+      <label className="grid gap-2 text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
         Intern
         <select
           name="internId"
           required
           value={internId}
           onChange={(event) => setInternId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className="h-11 rounded-xl border border-white/[0.08] bg-[#19242c] px-3 text-sm font-normal normal-case text-[#f3f4f6]"
         >
           <option value="">Select an intern</option>
           {interns.map((intern) => (
@@ -82,7 +82,7 @@ export function CreateInternshipForm({
           ))}
         </select>
       </label>
-      <label className="grid gap-2 text-sm font-medium">
+      <label className="grid gap-2 text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
         Team
         <input
           required
@@ -90,18 +90,18 @@ export function CreateInternshipForm({
           value={teamName}
           onChange={(event) => setTeamName(event.target.value)}
           placeholder="Select or enter a Team name"
-          className="h-10 rounded-lg border bg-background px-3"
+          className="h-11 rounded-xl border border-white/[0.08] bg-[#19242c] px-3 text-sm font-normal normal-case text-[#f3f4f6] placeholder:text-[#757575]"
         />
         <datalist id="team-options">
           {teams.map((team) => (
             <option key={team.id} value={team.title} />
           ))}
         </datalist>
-        <span className="text-xs font-normal text-muted-foreground">
+        <span className="text-xs font-normal normal-case text-[#9ca3af]">
           A new name creates a Team when you submit.
         </span>
       </label>
-      <label className="grid gap-2 text-sm font-medium">
+      <label className="grid gap-2 text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
         Placement start date
         <input
           name="startsAt"
@@ -109,10 +109,10 @@ export function CreateInternshipForm({
           required
           value={startsAt}
           onChange={(event) => setStartsAt(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className="h-11 rounded-xl border border-white/[0.08] bg-[#19242c] px-3 text-sm font-normal normal-case text-[#f3f4f6]"
         />
       </label>
-      <label className="grid gap-2 text-sm font-medium">
+      <label className="grid gap-2 text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
         Expected end date
         <input
           name="endsAt"
@@ -120,15 +120,15 @@ export function CreateInternshipForm({
           value={endsAt}
           min={startsAt || undefined}
           onChange={(event) => setEndsAt(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className="h-11 rounded-xl border border-white/[0.08] bg-[#19242c] px-3 text-sm font-normal normal-case text-[#f3f4f6]"
         />
       </label>
-      <label className="grid gap-2 text-sm font-medium">
+      <label className="grid gap-2 text-[11px] font-medium tracking-[0.08em] text-[#9ca3af] uppercase">
         Initial mentor
         <select
           value={initialMentorUserId}
           onChange={(event) => setInitialMentorUserId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className="h-11 rounded-xl border border-white/[0.08] bg-[#19242c] px-3 text-sm font-normal normal-case text-[#f3f4f6]"
         >
           <option value="">Assign later</option>
           {teammates.map((teammate) => (
@@ -139,11 +139,15 @@ export function CreateInternshipForm({
         </select>
       </label>
       {error ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-sm text-[#f87171]" role="alert">
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={submitting}>
+      <Button
+        type="submit"
+        disabled={submitting}
+        className="h-11 rounded-xl bg-[#00e5a3] px-5 font-semibold text-[#0b1014] hover:bg-[#00c98f]"
+      >
         {submitting ? "Creating…" : "Create internship"}
       </Button>
     </form>

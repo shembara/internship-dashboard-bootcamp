@@ -29,7 +29,7 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label className="block space-y-1.5 text-sm">
+    <label className="block space-y-1.5 text-sm text-[#d1d5db]">
       <span className="font-medium">
         {label}
         {required ? " *" : ""}
@@ -39,7 +39,7 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
         rows={3}
-        className="w-full rounded-lg border bg-background px-3 py-2 outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-[#f3f4f6] outline-none focus:border-[#00e5a3] disabled:cursor-not-allowed disabled:opacity-60"
       />
     </label>
   );
@@ -55,10 +55,10 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+    <section className="space-y-4 rounded-2xl border border-white/[0.08] bg-[#121a20] p-5 shadow-sm">
       <div>
         <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="mt-1 text-sm text-[#9ca3af]">{description}</p>
       </div>
       {children}
     </section>
@@ -86,16 +86,19 @@ function Summary({ hub }: { hub: ProgressHubDto }) {
     >
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(([label, value]) => (
-          <div key={label} className="rounded-xl border bg-muted/30 p-3">
-            <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+          <div
+            key={label}
+            className="rounded-xl border border-white/[0.08] bg-[#19242c] p-3"
+          >
+            <dt className="text-xs font-medium text-[#9ca3af]">{label}</dt>
             <dd className="mt-1 font-semibold">{value}</dd>
           </div>
         ))}
       </dl>
       {summary.nextDueAction ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-[#9ca3af]">
           Next due:{" "}
-          <span className="font-medium text-foreground">
+          <span className="font-medium text-[#f3f4f6]">
             {summary.nextDueAction.title}
           </span>{" "}
           by {summary.nextDueAction.dueDate}.
@@ -181,7 +184,7 @@ function ReflectionForm({
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">This reflection is read-only.</p>
+        <p className="text-sm text-[#9ca3af]">This reflection is read-only.</p>
       )}
     </Section>
   );
@@ -244,12 +247,12 @@ function CheckInForm({
           disabled={!editable}
         />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-[#9ca3af]">
         Need to keep a private note? Use the mentor-private notes section below — this
         check-in is shared with the manager.
       </p>
       {checkIn ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-[#9ca3af]">
           Original author: {checkIn.createdBy} · Last updated by: {checkIn.updatedBy}
         </p>
       ) : null}
@@ -272,7 +275,7 @@ function CheckInForm({
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">This check-in is read-only.</p>
+        <p className="text-sm text-[#9ca3af]">This check-in is read-only.</p>
       )}
     </Section>
   );
@@ -299,7 +302,7 @@ function Agenda({
             value={text}
             onChange={(event) => setText(event.target.value)}
             disabled={disabled}
-            className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
             placeholder="Add an agenda topic"
           />
           <Button
@@ -320,11 +323,9 @@ function Agenda({
           {hub.agendaItems.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+              className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.08] bg-[#19242c] p-3 text-sm"
             >
-              <span
-                className={item.resolved ? "text-muted-foreground line-through" : ""}
-              >
+              <span className={item.resolved ? "text-[#9ca3af] line-through" : ""}>
                 {item.text}
               </span>
               {item.canResolve ? (
@@ -344,7 +345,7 @@ function Agenda({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No agenda topics yet.</p>
+        <p className="text-sm text-[#9ca3af]">No agenda topics yet.</p>
       )}
     </Section>
   );
@@ -375,7 +376,7 @@ function Notes({
             onChange={(event) => setText(event.target.value)}
             disabled={disabled}
             rows={3}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
             placeholder="Write a note"
           />
           <Button
@@ -395,16 +396,19 @@ function Notes({
       {notes.length ? (
         <ul className="space-y-2">
           {notes.map((note) => (
-            <li key={note.id} className="rounded-lg border p-3 text-sm">
+            <li
+              key={note.id}
+              className="rounded-lg border border-white/[0.08] bg-[#19242c] p-3 text-sm"
+            >
               <p className="whitespace-pre-wrap">{note.text}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-[#9ca3af]">
                 {note.weekKey} · updated {new Date(note.updatedAt).toLocaleDateString()}
               </p>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No notes yet.</p>
+        <p className="text-sm text-[#9ca3af]">No notes yet.</p>
       )}
     </Section>
   );
@@ -438,7 +442,7 @@ function ActionItems({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className="rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
             placeholder="Action item"
           />
           <input
@@ -446,13 +450,13 @@ function ActionItems({
             value={dueDate}
             onChange={(event) => setDueDate(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className="rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
           />
           <select
             value={owner?.userId ?? ""}
             onChange={(event) => setOwnerUserId(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className="rounded-lg border border-white/[0.08] bg-[#19242c] px-3 py-2 text-sm text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
             aria-label="Action owner"
           >
             {hub.actionOwners.map((option) => (
@@ -489,19 +493,19 @@ function ActionItems({
           {hub.actionItems.map((item) => (
             <li
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.08] bg-[#19242c] p-3 text-sm"
             >
               <div>
                 <p
                   className={
                     item.status === "completed"
-                      ? "line-through text-muted-foreground"
+                      ? "line-through text-[#9ca3af]"
                       : "font-medium"
                   }
                 >
                   {item.title}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-[#9ca3af]">
                   Due {item.dueDate}
                   {item.overdue ? " · Overdue" : ""}
                 </p>
@@ -521,7 +525,7 @@ function ActionItems({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No action items yet.</p>
+        <p className="text-sm text-[#9ca3af]">No action items yet.</p>
       )}
     </Section>
   );
@@ -544,14 +548,15 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
       {reflections.length ? (
         <ol className="space-y-3">
           {reflections.map((reflection) => (
-            <li key={reflection.weekKey} className="rounded-lg border p-4">
+            <li
+              key={reflection.weekKey}
+              className="rounded-lg border border-white/[0.08] bg-[#19242c] p-4"
+            >
               <h3 className="font-medium">{reflection.weekKey}</h3>
               <dl className="mt-3 grid gap-3 md:grid-cols-2">
                 {fields.map(([label, key]) => (
                   <div key={key}>
-                    <dt className="text-xs font-medium text-muted-foreground">
-                      {label}
-                    </dt>
+                    <dt className="text-xs font-medium text-[#9ca3af]">{label}</dt>
                     <dd className="mt-1 whitespace-pre-wrap text-sm">
                       {reflection[key] || "Not provided"}
                     </dd>
@@ -562,7 +567,7 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
           ))}
         </ol>
       ) : (
-        <p className="text-sm text-muted-foreground">No submitted reflections yet.</p>
+        <p className="text-sm text-[#9ca3af]">No submitted reflections yet.</p>
       )}
     </Section>
   );
@@ -585,15 +590,15 @@ function History({ hub }: { hub: ProgressHubDto }) {
           {records.map((record) => (
             <li
               key={record.weekKey}
-              className="flex items-center justify-between rounded-lg border p-3 text-sm"
+              className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-[#19242c] p-3 text-sm"
             >
               <span>{record.weekKey}</span>
-              <span className="text-muted-foreground">{stateLabel(record.state)}</span>
+              <span className="text-[#9ca3af]">{stateLabel(record.state)}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No weekly history yet.</p>
+        <p className="text-sm text-[#9ca3af]">No weekly history yet.</p>
       )}
     </Section>
   );

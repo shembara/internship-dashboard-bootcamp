@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
-import { Menu } from "@/components/ui/Menu";
 import { InternshipLifecycle } from "@/features/internships/InternshipLifecycle";
 import { ProgressHub } from "@/features/progress-hub/ProgressHub";
 import { Achievements } from "@/features/achievements/Achievements";
@@ -28,23 +26,16 @@ export default async function TeammateInternshipPage({
   }
   const achievements = await listAchievements(internshipId, context.userId);
   const timeline = await getInternshipTimeline(internshipId, achievements);
-  const workspaceMenu = [
-    { href: "#feedback", label: "Feedback" },
-    { href: "#one-on-one-preparation", label: "1:1 Preparation" },
-  ];
-
   return (
-    <section className="space-y-7">
+    <section className="mx-auto max-w-6xl space-y-7">
       <div className="space-y-2">
-        <Breadcrumbs
-          items={[
-            { label: "Internships", href: "/teammate" },
-            { label: internship.internName },
-          ]}
-        />
-        <p className="text-sm font-medium text-[var(--brand-strong)]">
-          Teammate workspace
-        </p>
+        <a
+          href="/teammate"
+          className="inline-flex text-sm font-medium text-[#00e5a3] hover:text-[#65f0c2]"
+        >
+          ← Internships
+        </a>
+        <p className="text-sm font-medium text-[#9ca3af]">Teammate workspace</p>
         <h1 className="text-3xl font-semibold tracking-tight">
           {internship.internName}
         </h1>
@@ -55,36 +46,29 @@ export default async function TeammateInternshipPage({
       ) : null}
       <Achievements internshipId={internshipId} data={achievements} />
       <InternshipTimeline timeline={timeline} />
-      <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
-        <Menu
-          items={workspaceMenu}
-          label="Internship navigation"
-          className="md:flex-col md:overflow-visible"
-        />
-        <div className="space-y-10">
-          <section id="feedback" className="scroll-mt-24 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Feedback</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Give feedback for this intern&apos;s active feedback cycles.
-              </p>
-            </div>
-            <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-              Feedback tasks will appear here.
-            </div>
-          </section>
-          <section id="one-on-one-preparation" className="scroll-mt-24 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">1:1 Preparation</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Prepare talking points for upcoming one-to-one meetings.
-              </p>
-            </div>
-            <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-              One-to-one preparation will be added here.
-            </div>
-          </section>
-        </div>
+      <div className="space-y-10">
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Feedback</h2>
+            <p className="mt-1 text-sm text-[#9ca3af]">
+              Give feedback for this intern&apos;s active feedback cycles.
+            </p>
+          </div>
+          <div className="rounded-xl border border-dashed border-white/[0.16] bg-[#121a20] p-6 text-sm text-[#9ca3af]">
+            Feedback tasks will appear here.
+          </div>
+        </section>
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">1:1 Preparation</h2>
+            <p className="mt-1 text-sm text-[#9ca3af]">
+              Prepare talking points for upcoming one-to-one meetings.
+            </p>
+          </div>
+          <div className="rounded-xl border border-dashed border-white/[0.16] bg-[#121a20] p-6 text-sm text-[#9ca3af]">
+            One-to-one preparation will be added here.
+          </div>
+        </section>
       </div>
     </section>
   );

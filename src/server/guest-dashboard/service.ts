@@ -17,6 +17,16 @@ import { isCurrentManagerAssignment } from "@/server/assignments/domain";
 import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/repository";
 
+const guestSkillLabels = [
+  "Technical understanding",
+  "Code quality",
+  "Debugging",
+  "Technical decision-making",
+  "Communication",
+  "Ownership",
+  "Understanding requirements",
+] as const;
+
 function iso(value: unknown) {
   return value instanceof Timestamp ? value.toDate().toISOString() : undefined;
 }
@@ -169,6 +179,9 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
       const completed = required.filter(
         (item) => stage.data()?.items?.[item.key]?.completed,
       ).length;
+      const requiredProgress = required.length
+        ? Math.round((completed / required.length) * 100)
+        : 0;
       const feedback = checkIns.docs
         .map((entry) => entry.data())
         .find((entry) => entry.state === "shared");
@@ -205,6 +218,11 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
           : undefined,
         requiredCompletedCount: completed,
         requiredTotalCount: required.length,
+        skills: guestSkillLabels.map((skill) => ({
+          id: skill.toLowerCase().replaceAll(/[^a-z]+/g, "-"),
+          label: skill,
+          progress: requiredProgress,
+        })),
         timeline: [
           ...(() => {
             const occurredAt = iso(internshipData.createdAt);
