@@ -57,12 +57,12 @@ export function Achievements({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Achievement title"
-            className="h-10 rounded-lg border bg-background px-3"
+            className="h-10 rounded-lg border border-white/[0.08] bg-[#19242c] px-3 text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
           />
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value as typeof category)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className="h-10 rounded-lg border border-white/[0.08] bg-[#19242c] px-3 text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
           >
             {achievementCategories.map((item) => (
               <option key={item.value} value={item.value}>
@@ -74,7 +74,7 @@ export function Achievements({
             type="date"
             value={achievedOn}
             onChange={(event) => setAchievedOn(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className="h-10 rounded-lg border border-white/[0.08] bg-[#19242c] px-3 text-[#f3f4f6] outline-none focus:border-[#00e5a3]"
           />
           <Button
             type="button"

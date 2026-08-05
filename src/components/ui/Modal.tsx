@@ -21,7 +21,7 @@ export function Modal({
       <Dialog.Trigger render={trigger} />
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm" />
-        <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/[0.08] bg-[#121a20] p-6 text-[#f3f4f6] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+        <Dialog.Popup className="dark fixed left-1/2 top-1/2 z-50 w-[min(34rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/[0.08] bg-[#121a20] p-6 text-[#f3f4f6] shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <div className="flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>

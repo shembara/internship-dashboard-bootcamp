@@ -26,7 +26,6 @@ import {
   progressHubTimeZone,
 } from "@/lib/progress-hub/week";
 import {
-  isCurrent,
   isOngoingOrScheduled,
   teammateAssignmentDocumentSchema as mentorAssignmentSchema,
 } from "@/server/assignments/domain";
@@ -545,18 +544,18 @@ async function getProgressHubForViewer(
       .get(),
     viewer === "intern"
       ? internshipRef
-        .collection("privateInternNotes")
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .get()
+          .collection("privateInternNotes")
+          .orderBy("createdAt", "desc")
+          .limit(50)
+          .get()
       : Promise.resolve(undefined),
     viewer === "intern"
       ? Promise.resolve(undefined)
       : internshipRef
-        .collection("mentorPrivateNotes")
-        .orderBy("createdAt", "desc")
-        .limit(50)
-        .get(),
+          .collection("mentorPrivateNotes")
+          .orderBy("createdAt", "desc")
+          .limit(50)
+          .get(),
     internshipRef.collection("actionItems").orderBy("dueDate", "asc").get(),
     actionOwnerOptions(internshipRef, internship),
   ]);
@@ -593,8 +592,8 @@ async function getProgressHubForViewer(
       : undefined;
   const summaryCheckIn =
     viewer === "manager" ||
-      currentCheckIn?.state === "shared" ||
-      (viewer === "mentor" && currentCheckIn?.createdBy === userId)
+    currentCheckIn?.state === "shared" ||
+    (viewer === "mentor" && currentCheckIn?.createdBy === userId)
       ? currentCheckIn
       : undefined;
   const latestSharedCheckInAt = parsedCheckIns
@@ -638,18 +637,18 @@ async function getProgressHubForViewer(
       ...common,
       reflection: currentReflection
         ? reflectionDto(
-          currentReflection,
-          access.writable &&
-          currentWeek.state === "current" &&
-          currentReflection.state !== "submitted",
-        )
+            currentReflection,
+            access.writable &&
+              currentWeek.state === "current" &&
+              currentReflection.state !== "submitted",
+          )
         : undefined,
       reflectionHistory: parsedReflections.map((record) =>
         reflectionDto(
           record.data,
           access.writable &&
-          record.data.weekKey === currentWeek.key &&
-          record.data.state !== "submitted",
+            record.data.weekKey === currentWeek.key &&
+            record.data.state !== "submitted",
         ),
       ),
       mentorCheckIns: visibleCheckIns,
@@ -687,16 +686,16 @@ async function getProgressHubForViewer(
       reflections: visibleReflections,
       checkIn: currentMentorCheckIn
         ? checkInDto(
-          currentMentorCheckIn,
-          access.writable && currentMentorCheckIn.state !== "shared",
-        )
+            currentMentorCheckIn,
+            access.writable && currentMentorCheckIn.state !== "shared",
+          )
         : undefined,
       checkInHistory: visibleCheckIns.map((record) =>
         checkInDto(
           record.data,
           access.writable &&
-          record.data.weekKey === currentWeek.key &&
-          record.data.state !== "shared",
+            record.data.weekKey === currentWeek.key &&
+            record.data.state !== "shared",
         ),
       ),
       privateMentorNotes: visibleMentorNotes,
@@ -1101,10 +1100,10 @@ export async function saveActionItem(
         ...(existing.exists
           ? {}
           : {
-            status: "open",
-            createdAt: FieldValue.serverTimestamp(),
-            createdBy: userId,
-          }),
+              status: "open",
+              createdAt: FieldValue.serverTimestamp(),
+              createdBy: userId,
+            }),
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,
       },

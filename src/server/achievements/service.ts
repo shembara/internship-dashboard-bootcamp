@@ -6,7 +6,6 @@ import { z } from "zod";
 import { achievementCategories, type AchievementDto } from "@/lib/achievements/types";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import { progressHubTimeZone } from "@/lib/progress-hub/week";
-import { isCurrent } from "@/server/assignments/domain";
 import {
   isCurrentManagerAssignment,
   isOngoingOrScheduled,
@@ -265,7 +264,7 @@ export async function createAchievement(
     if (
       input.linkedStage &&
       internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
-      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
+        internshipStages.findIndex((stage) => stage.value === internship.currentStage)
     )
       throw new Error("Achievement cannot be linked to a future stage.");
     assertAchievementBusinessRules(internship, input);
@@ -339,17 +338,17 @@ export async function archiveAchievement(
       achievementRef,
       restore
         ? {
-          archivedAt: FieldValue.delete(),
-          archivedBy: FieldValue.delete(),
-          updatedBy: userId,
-          updatedAt: FieldValue.serverTimestamp(),
-        }
+            archivedAt: FieldValue.delete(),
+            archivedBy: FieldValue.delete(),
+            updatedBy: userId,
+            updatedAt: FieldValue.serverTimestamp(),
+          }
         : {
-          archivedAt: FieldValue.serverTimestamp(),
-          archivedBy: userId,
-          updatedBy: userId,
-          updatedAt: FieldValue.serverTimestamp(),
-        },
+            archivedAt: FieldValue.serverTimestamp(),
+            archivedBy: userId,
+            updatedBy: userId,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
     );
   });
 }
