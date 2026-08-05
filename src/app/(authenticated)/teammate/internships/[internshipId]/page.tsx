@@ -49,12 +49,26 @@ export default async function TeammateInternshipPage({
           {internship.internName}
         </h1>
       </div>
-      <InternshipLifecycle {...internship} internshipId={internshipId} />
+
+      {/* Окремі id для Lifecycle та Final Review Checklist */}
+      <section id="internship-lifecycle" className="scroll-mt-24">
+        <InternshipLifecycle {...internship} internshipId={internshipId} />
+      </section>
+
       {internship.progressHub ? (
         <ProgressHub internshipId={internshipId} hub={internship.progressHub} />
       ) : null}
-      <Achievements internshipId={internshipId} data={achievements} />
-      <InternshipTimeline timeline={timeline} />
+
+      {/* Обгортка для Achievements з відповідним id */}
+      <section id="achievements" className="scroll-mt-24">
+        <Achievements internshipId={internshipId} data={achievements} />
+      </section>
+
+      {/* Обгортка для Internship Timeline з відповідним id */}
+      <section id="internship-timeline" className="scroll-mt-24">
+        <InternshipTimeline timeline={timeline} />
+      </section>
+
       <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
         <Menu
           items={workspaceMenu}
