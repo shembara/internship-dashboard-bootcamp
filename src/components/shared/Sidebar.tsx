@@ -69,8 +69,14 @@ function resolveHref({
     return `/manager/internships/${internshipId}/${href}`;
   }
 
-  if (role === "teammate" && internshipId && href.startsWith("#")) {
-    return `/teammate/internships/${internshipId}${href}`;
+  // Обробка для ментора (teammate)
+  if (role === "teammate" && internshipId) {
+    if (href.startsWith("#")) {
+      return `/teammate/internships/${internshipId}${href}`;
+    }
+    if (isWorkspaceSegment(href)) {
+      return `/teammate/internships/${internshipId}/${href}`;
+    }
   }
 
   if (href.startsWith("#")) {
