@@ -10,13 +10,6 @@ export type FirebaseIdentityClaims = {
   firebase?: { sign_in_provider?: string };
 };
 
-const ALLOWED_EMAIL_DOMAINS = ["fluxon.com", "ucu.edu.ua"];
-
-function isAllowedDomain(email: string): boolean {
-  const domain = email.split("@")[1]?.toLowerCase();
-  return Boolean(domain && ALLOWED_EMAIL_DOMAINS.includes(domain));
-}
-
 export function validateIdentityClaims(
   claims: FirebaseIdentityClaims,
   allowDevelopmentPassword: boolean,
@@ -45,30 +38,10 @@ export function validateIdentityClaims(
     );
   }
 
-  // Validate allowed email domains
-  if (!isAllowedDomain(claims.email)) {
-    throw new AuthenticationError(
-      "UNSUPPORTED_PROVIDER",
-      "Only @fluxon.com and @ucu.edu.ua email accounts are permitted.",
-    );
-  }
-
   return {
     uid: claims.uid,
     email: claims.email,
     displayName: typeof claims.name === "string" ? claims.name : undefined,
     emailVerified: true,
   };
-}
-
-export function assertRecentAuthentication(
-  authenticationTime: number | undefined,
-  nowSeconds = Math.floor(Date.now() / 1000),
-): void {
-  if (authenticationTime === undefined || nowSeconds - authenticationTime > 300) {
-    throw new AuthenticationError(
-      "INVALID_SESSION",
-      "Sign in again before creating an application session.",
-    );
-  }
 }
