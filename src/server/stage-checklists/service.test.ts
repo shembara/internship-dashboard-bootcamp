@@ -98,7 +98,11 @@ describe("checklist access", () => {
         document(undefined),
         assignments(currentMentorAssignment),
       ),
-    ).toEqual({ completionActors: ["mentor"], canAdvance: true });
+    ).toEqual({
+      completionActors: ["mentor"],
+      canAdvance: true,
+      canAddTasks: true,
+    });
   });
 
   it("denies inactive users even when their assignment is current", () => {
