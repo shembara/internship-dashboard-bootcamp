@@ -1,14 +1,11 @@
-import "server-only";
-
 import { Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 
-export const applicationRoleSchema = z.enum(["manager", "intern", "teammate"]);
+export const applicationRoles = ["manager", "intern", "teammate", "guest"] as const;
+export type ApplicationRole = (typeof applicationRoles)[number];
 
-export type ApplicationRole = z.infer<typeof applicationRoleSchema>;
-
-export const appUserIdentitySchema = z.object({
-  provider: z.enum(["firebase", "google"]),
+const identitySchema = z.object({
+  provider: z.string().min(1),
   subject: z.string().min(1),
 });
 
@@ -16,19 +13,17 @@ export const appUserSchema = z.object({
   email: z.string().email(),
   displayName: z.string().min(1),
   active: z.boolean(),
-  roles: z.array(applicationRoleSchema).min(1),
-  identityState: z.enum(["pending", "linked"]).default("linked"),
-
-  // Додаємо .default([]) та за потреби .optional()
-  identities: z.array(appUserIdentitySchema).optional().default([]),
-
-  createdAt: z.instanceof(Timestamp),
-  updatedAt: z.instanceof(Timestamp),
+  roles: z.array(z.enum(applicationRoles)).min(1),
+  identityState: z.enum(["pending", "linked"]),
+  identities: z.array(identitySchema).optional().default([]),
+  createdAt: z
+    .instanceof(Timestamp)
+    .optional()
+    .default(() => Timestamp.now()),
+  updatedAt: z
+    .instanceof(Timestamp)
+    .optional()
+    .default(() => Timestamp.now()),
 });
 
 export type AppUser = z.infer<typeof appUserSchema>;
-
-export type AppUserRecord = {
-  id: string;
-  data: AppUser;
-};

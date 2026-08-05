@@ -5,11 +5,16 @@ import { z } from "zod";
 
 import { achievementCategories, type AchievementDto } from "@/lib/achievements/types";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
+import { progressHubTimeZone } from "@/lib/progress-hub/week";
 import { isCurrent } from "@/server/assignments/domain";
-import { isCurrentManagerAssignment } from "@/server/assignments/domain";
+import {
+  isCurrentManagerAssignment,
+  isOngoingOrScheduled,
+} from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import { recordFirestoreReadPath } from "@/server/firebase/read-diagnostics";
+import type { InternshipDocument } from "@/server/internships/domain";
 import { parseInternshipDocument } from "@/server/internships/repository";
 import { appUserSchema } from "@/server/users/app-user";
 
@@ -45,6 +50,31 @@ const achievementSchema = achievementInputSchema.extend({
   archivedBy: z.string().min(1).optional(),
 });
 
+function todayInApplicationTimeZone() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: progressHubTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
+function assertAchievementBusinessRules(
+  internship: InternshipDocument,
+  input: Pick<z.infer<typeof achievementInputSchema>, "achievedOn" | "linkedStage">,
+) {
+  if (input.achievedOn < internship.startsAt.toDate().toISOString().slice(0, 10))
+    throw new Error("Achievement date cannot be before the internship start date.");
+  if (input.achievedOn > todayInApplicationTimeZone())
+    throw new Error("Achievement date cannot be in the future.");
+  if (
+    input.linkedStage &&
+    internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
+      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
+  )
+    throw new Error("Achievement cannot be linked to a future stage.");
+}
+
 async function access(
   internshipRef: FirebaseFirestore.DocumentReference,
   userId: string,
@@ -74,7 +104,7 @@ async function access(
       return (
         data.responsibilities?.includes("mentor") &&
         data.startsAt &&
-        isCurrent({ startsAt: data.startsAt, endsAt: data.endsAt })
+        isOngoingOrScheduled({ startsAt: data.startsAt, endsAt: data.endsAt })
       );
     });
   const managerAccess =
@@ -201,7 +231,7 @@ export async function createAchievement(
         return (
           value.startsAt &&
           value.responsibilities?.includes("mentor") &&
-          isCurrent({ startsAt: value.startsAt, endsAt: value.endsAt })
+          isOngoingOrScheduled({ startsAt: value.startsAt, endsAt: value.endsAt })
         );
       });
     const managerAccess =
@@ -235,9 +265,10 @@ export async function createAchievement(
     if (
       input.linkedStage &&
       internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
-        internshipStages.findIndex((stage) => stage.value === internship.currentStage)
+      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
     )
       throw new Error("Achievement cannot be linked to a future stage.");
+    assertAchievementBusinessRules(internship, input);
     transaction.create(ref.collection("achievements").doc(), {
       ...input,
       createdBy: userId,
@@ -270,6 +301,7 @@ export async function updateAchievement(
         "ROLE_REQUIRED",
         "Only the author or a manager can edit this achievement.",
       );
+    assertAchievementBusinessRules(viewer.internship, input);
     transaction.update(achievementRef, {
       ...input,
       updatedBy: userId,
@@ -307,17 +339,17 @@ export async function archiveAchievement(
       achievementRef,
       restore
         ? {
-            archivedAt: FieldValue.delete(),
-            archivedBy: FieldValue.delete(),
-            updatedBy: userId,
-            updatedAt: FieldValue.serverTimestamp(),
-          }
+          archivedAt: FieldValue.delete(),
+          archivedBy: FieldValue.delete(),
+          updatedBy: userId,
+          updatedAt: FieldValue.serverTimestamp(),
+        }
         : {
-            archivedAt: FieldValue.serverTimestamp(),
-            archivedBy: userId,
-            updatedBy: userId,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
+          archivedAt: FieldValue.serverTimestamp(),
+          archivedBy: userId,
+          updatedBy: userId,
+          updatedAt: FieldValue.serverTimestamp(),
+        },
     );
   });
 }

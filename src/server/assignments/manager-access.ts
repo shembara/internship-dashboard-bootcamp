@@ -1,20 +1,14 @@
 import "server-only";
 
-import { Timestamp } from "firebase-admin/firestore";
-import { z } from "zod";
-
-import { isCurrentManagerAssignment } from "@/server/assignments/domain";
+import {
+  isCurrentManagerAssignment,
+  managerAssignmentDocumentSchema,
+} from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/repository";
 import type { InternshipDocument } from "@/server/internships/domain";
 import { appUserSchema } from "@/server/users/app-user";
-
-const managerAssignmentSchema = z.object({
-  userId: z.string().min(1),
-  startsAt: z.instanceof(Timestamp).optional(),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
 
 export function assertManagerAccessSnapshots(
   internshipSnapshot: FirebaseFirestore.DocumentSnapshot,
@@ -34,7 +28,7 @@ export function assertManagerAccessSnapshots(
     );
   }
   const manager = appUserSchema.parse(userSnapshot.data());
-  const assignment = managerAssignmentSchema.parse(assignmentSnapshot.data());
+  const assignment = managerAssignmentDocumentSchema.parse(assignmentSnapshot.data());
   if (
     !manager.active ||
     !manager.roles.includes("manager") ||
