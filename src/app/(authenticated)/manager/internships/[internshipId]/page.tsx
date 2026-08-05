@@ -11,7 +11,7 @@ import { listAchievements } from "@/server/achievements/service";
 import { requireManagerPage } from "@/server/assignments/page-auth";
 import { getManagerPortfolioDetail } from "@/server/manager-portfolio/service";
 import { getInternshipTimeline } from "@/server/timeline/service";
-import { Menu } from "lucide-react";
+import { Menu } from "@/components/ui/Menu";
 
 function dateLabel(value: string | undefined) {
   return value ? new Date(value).toLocaleDateString() : "Ongoing";
