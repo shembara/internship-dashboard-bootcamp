@@ -20,29 +20,36 @@ export function EditResponsibilitiesForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [responsibilities, setResponsibilities] = useState(selected);
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    return fetch(
-      `/api/manager/internships/${internshipId}/teammate-assignments/${assignmentId}`,
-      {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          responsibilities,
-        }),
-      },
-    )
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Could not save responsibilities.");
-        }
-        onSuccess?.();
-        router.refresh();
-      })
-      .catch(() => setError("Could not save responsibilities. Please try again."))
-      .finally(() => setPending(false));
+    try {
+      const response = await fetch(
+        `/api/manager/internships/${internshipId}/teammate-assignments/${assignmentId}`,
+        {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            responsibilities,
+          }),
+        },
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? "Could not save responsibilities.");
+      }
+      onSuccess?.();
+      router.refresh();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Could not save responsibilities. Please try again.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 text-sm">

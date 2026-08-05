@@ -27,15 +27,17 @@ export default async function AssignmentDetailPage({
 }) {
   const { internshipId } = await params;
   const context = await requireManagerPage();
-  const detail = await getManagerPortfolioDetail(internshipId, context.userId);
-  const achievements = await listAchievements(internshipId, context.userId, true);
+  const [detail, achievements] = await Promise.all([
+    getManagerPortfolioDetail(internshipId, context.userId),
+    listAchievements(internshipId, context.userId, true),
+  ]);
   const timeline = await getInternshipTimeline(internshipId, achievements);
   const currentPlacement =
     detail.placements.find((placement) => placement.current) ?? detail.placements[0];
   const assignments = currentPlacement
     ? detail.teammateAssignments.filter(
-        (assignment) => assignment.teamId === currentPlacement.teamId,
-      )
+      (assignment) => assignment.teamId === currentPlacement.teamId,
+    )
     : [];
   const workspaceMenu = [
     {
@@ -146,7 +148,7 @@ export default async function AssignmentDetailPage({
                       </p>
                     </div>
                     {assignment.status !== "ended" &&
-                    detail.capabilities.canManageTeammates ? (
+                      detail.capabilities.canManageTeammates ? (
                       <TeammateAssignmentActions
                         internshipId={internshipId}
                         assignmentId={assignment.id}

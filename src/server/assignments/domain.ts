@@ -1,8 +1,35 @@
 import "server-only";
 
 import { Timestamp } from "firebase-admin/firestore";
+import { z } from "zod";
 
 export type DateRange = { startsAt: Timestamp; endsAt?: Timestamp };
+
+/**
+ * Canonical Firestore document shapes shared by every feature that reads
+ * managerAssignments, teammateAssignments, or teamPlacements sub-collections.
+ * Import these instead of re-declaring ad-hoc subsets per feature so the
+ * validated shape can't silently drift between callers.
+ */
+export const managerAssignmentDocumentSchema = z.object({
+  userId: z.string().min(1),
+  startsAt: z.instanceof(Timestamp).optional(),
+  endsAt: z.instanceof(Timestamp).optional(),
+});
+
+export const teammateAssignmentDocumentSchema = z.object({
+  teammateUserId: z.string().min(1),
+  teamId: z.string().min(1),
+  responsibilities: z.array(z.string()),
+  startsAt: z.instanceof(Timestamp),
+  endsAt: z.instanceof(Timestamp).optional(),
+});
+
+export const placementDocumentSchema = z.object({
+  teamId: z.string().min(1),
+  startsAt: z.instanceof(Timestamp),
+  endsAt: z.instanceof(Timestamp).optional(),
+});
 
 export type ManagerAssignmentPeriod = {
   startsAt?: Timestamp;
@@ -14,10 +41,7 @@ export function isCurrentManagerAssignment(
   assignment: ManagerAssignmentPeriod,
   now = Timestamp.now(),
 ): boolean {
-  return (
-    (!assignment.startsAt || assignment.startsAt.toMillis() <= now.toMillis()) &&
-    (!assignment.endsAt || assignment.endsAt.toMillis() > now.toMillis())
-  );
+  return !assignment.endsAt || assignment.endsAt.toMillis() > now.toMillis();
 }
 
 export function isOperationalInternshipStatus(status: string): boolean {
