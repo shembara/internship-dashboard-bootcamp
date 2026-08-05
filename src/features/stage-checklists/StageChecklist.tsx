@@ -271,6 +271,37 @@ export function StageChecklist({
             </Modal>
           ) : null}
           {checklist.canCompleteStage ? (
+            <div className="flex gap-2">
+              <Modal
+                trigger={
+                  <Button type="button" variant="outline">
+                    Request changes
+                  </Button>
+                }
+                title="Request changes"
+                description="Explain what the intern needs to change."
+              >
+                {(close) => (
+                  <RequestChangesForm
+                    close={close}
+                    pending={isPending}
+                    onSubmit={(comment) =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/items/review`,
+                        {
+                          stage: checklist.stage,
+                          action: "requestChanges",
+                          comment,
+                        },
+                        "request-changes",
+                      )
+                    }
+                  />
+                )}
+              </Modal>
+            </div>
+          ) : null}
+          {checklist.canCompleteStage ? (
             <Button
               type="button"
               disabled={!checklist.readyToComplete || isPending}
@@ -359,39 +390,22 @@ export function StageChecklist({
                 ))}
               </div>
               {column.status === "done" && checklist.canReviewDoneTasks ? (
-                <div className="mt-3 space-y-2 border-t pt-3">
-                  <Modal
-                    trigger={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Request changes
-                      </Button>
+                <div className="mt-3 border-t pt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full"
+                    disabled={isPending}
+                    onClick={() =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/items/review`,
+                        { stage: checklist.stage, action: "approve" },
+                        "review-done",
+                      )
                     }
-                    title="Request changes"
-                    description="Explain what the intern needs to change."
                   >
-                    {(close) => (
-                      <RequestChangesForm
-                        close={close}
-                        pending={isPending}
-                        onSubmit={(comment) =>
-                          mutate(
-                            `/api/internships/${internshipId}/stage-checklist/items/review`,
-                            {
-                              stage: checklist.stage,
-                              action: "requestChanges",
-                              comment,
-                            },
-                            "request-changes",
-                          )
-                        }
-                      />
-                    )}
-                  </Modal>
+                    {pending === "review-done" ? "Saving…" : "Confirm mentor review"}
+                  </Button>
                 </div>
               ) : null}
             </section>

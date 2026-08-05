@@ -235,7 +235,7 @@ export function resolveChecklistAccess(
     // The task board is shared by the intern and their currently assigned teammates.
     // Mentor responsibility remains required for Progress Hub and stage advancement.
     canMoveTasks: intern || mentor || manager,
-    canAddTasks: mentor || manager,
+    canAddTasks: intern || mentor || manager,
     canReviewTasks: mentor || manager,
     isIntern: intern,
     canViewAllStages: mentor || manager,
