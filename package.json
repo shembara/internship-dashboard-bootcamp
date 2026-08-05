@@ -30,6 +30,7 @@
     "test:e2e": "npm run seed:development && playwright test",
     "seed:development": "tsx scripts/seed-development.ts",
     "deploy:firestore-indexes": "tsx scripts/deploy-firestore-indexes.ts",
+    "deploy:firestore-rules": "tsx scripts/deploy-firestore-rules.ts",
     "validate": "npm run lint && npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

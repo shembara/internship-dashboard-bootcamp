@@ -29,7 +29,7 @@ const app =
     projectId,
   });
 const auth = getAuth(app);
-const firestore = getFirestore(app);
+const firestore = getFirestore(app, process.env.FIRESTORE_DATABASE_ID ?? "(default)");
 const developmentPassword = "local-only-password";
 
 const personas = [
