@@ -45,3 +45,15 @@ export function validateIdentityClaims(
     emailVerified: true,
   };
 }
+
+export function assertRecentAuthentication(
+  authenticationTime: number | undefined,
+  nowSeconds = Math.floor(Date.now() / 1000),
+): void {
+  if (authenticationTime === undefined || nowSeconds - authenticationTime > 300) {
+    throw new AuthenticationError(
+      "INVALID_SESSION",
+      "Sign in again before creating an application session.",
+    );
+  }
+}
