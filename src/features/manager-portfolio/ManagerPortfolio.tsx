@@ -27,7 +27,7 @@ function dateLabel(value: string | undefined) {
 }
 
 export function ManagerPortfolio({ portfolio }: { portfolio: ManagerPortfolioDto }) {
-  return <ManagerPortfolioControls key={JSON.stringify(portfolio.query)} portfolio={portfolio} />;
+  return <ManagerPortfolioControls portfolio={portfolio} />;
 }
 
 function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDto }) {

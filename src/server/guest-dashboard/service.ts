@@ -151,7 +151,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
     managerUserId?: string;
   };
 
-  // 2. Fetch subcollections for each internship in parallel
+  // 2. Fetch lightweight dashboard summary subcollections per internship in parallel
   const draftItems: DraftItem[] = await Promise.all(
     internships.docs.map(async (document) => {
       const internshipData = document.data();
@@ -173,8 +173,14 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         ref.collection("managerAssignments").get(),
         ref.collection("stageProgress").doc(internship.currentStage).get(),
         ref.collection("stageProgress").limit(internshipStages.length).get(),
-        ref.collection("mentorCheckIns").orderBy("weekKey", "desc").limit(16).get(),
-        ref.collection("achievements").orderBy("achievedOn", "desc").limit(100).get(),
+        // Defer heavy check-in history: fetch only the single latest shared feedback for dashboard summary
+        ref
+          .collection("mentorCheckIns")
+          .orderBy("weekKey", "desc")
+          .limit(1)
+          .get(),
+        // Defer complete 100-item history: fetch only top 10 recent achievements for top-level timeline context
+        ref.collection("achievements").orderBy("achievedOn", "desc").limit(10).get(),
         ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
       ]);
 
@@ -196,9 +202,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         (item) => stage.data()?.items?.[item.key]?.completed,
       ).length;
 
-      const feedback = checkIns.docs
-        .map((entry) => entry.data())
-        .find((entry) => entry.state === "shared");
+      const feedback = checkIns.docs[0]?.data();
 
       const statusChanges = history.docs.flatMap((entry) => {
         const data = entry.data();

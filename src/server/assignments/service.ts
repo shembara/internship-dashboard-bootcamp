@@ -393,30 +393,30 @@ export async function getManagedInternshipDetail(
     .collection("users")
     .doc(internshipData.internId)
     .get();
-  const teamIds = new Set<string>();
-  placements.docs.forEach((document) => teamIds.add(document.data().teamId as string));
-  assignments.docs.forEach((document) => teamIds.add(document.data().teamId as string));
+
+  const teamIds = [
+    ...new Set([
+      ...placements.docs.map((doc) => doc.data().teamId as string),
+      ...assignments.docs.map((doc) => doc.data().teamId as string),
+    ]),
+  ].filter(Boolean);
+
+  const teamRefs = teamIds.map((id) => adminFirestore.collection("teams").doc(id));
+  const teamDocs = teamRefs.length ? await adminFirestore.getAll(...teamRefs) : [];
   const teams = new Map(
-    (
-      await Promise.all(
-        [...teamIds].map(async (id) => {
-          const document = await adminFirestore.collection("teams").doc(id).get();
-          return [id, document.data()?.title as string | undefined] as const;
-        }),
-      )
-    ).filter((entry): entry is [string, string] => Boolean(entry[1])),
+    teamDocs.map((doc) => [doc.id, doc.data()?.title as string | undefined]),
   );
-  const teammateIds = new Set(
-    assignments.docs.map((document) => document.data().teammateUserId as string),
-  );
+
+  const teammateIds = [
+    ...new Set(assignments.docs.map((doc) => doc.data().teammateUserId as string)),
+  ].filter(Boolean);
+
+  const teammateRefs = teammateIds.map((id) => adminFirestore.collection("users").doc(id));
+  const teammateDocs = teammateRefs.length ? await adminFirestore.getAll(...teammateRefs) : [];
   const teammateNames = new Map(
-    await Promise.all(
-      [...teammateIds].map(async (id) => {
-        const document = await adminFirestore.collection("users").doc(id).get();
-        return [id, document.data()?.displayName as string | undefined] as const;
-      }),
-    ),
+    teammateDocs.map((doc) => [doc.id, doc.data()?.displayName as string | undefined]),
   );
+
   const checklist = await getStageChecklist(internshipRef, internshipData, managerId);
   const progressHub = await getManagerProgressHub(
     internshipRef,

@@ -208,7 +208,7 @@ function latestActivity(item: {
   return values.sort((a, b) => b.localeCompare(a))[0];
 }
 
-function deriveAttentionSignals(
+export function deriveAttentionSignals(
   item: Omit<ManagerPortfolioItemDto, "attentionSignals">,
   now = Timestamp.now(),
 ) {
@@ -225,8 +225,8 @@ function deriveAttentionSignals(
   }
   if (
     isOperationalInternshipStatus(item.status) &&
-    !item.currentStageChecklist.isStageCompleted &&
-    item.currentStageChecklist.readyToComplete
+    !item.currentStageChecklist?.isStageCompleted &&
+    item.currentStageChecklist?.readyToComplete
   ) {
     signals.push(attentionSignal("stageReadyToComplete"));
   }
@@ -315,10 +315,10 @@ async function buildPortfolioItem(
     startsAt: timestamp(internship.startsAt)!,
     endsAt: timestamp(internship.endsAt),
     currentStageChecklist: {
-      requiredCompletedCount: checklist.requiredCompletedCount,
-      requiredTotalCount: checklist.requiredTotalCount,
-      readyToComplete: checklist.readyToComplete,
-      isStageCompleted: checklist.isStageCompleted,
+      requiredCompletedCount: checklist?.requiredCompletedCount,
+      requiredTotalCount: checklist?.requiredTotalCount,
+      readyToComplete: checklist?.readyToComplete,
+      isStageCompleted: checklist?.isStageCompleted,
     },
     mentorNames: currentMentors.map(
       (assignment) =>
@@ -361,16 +361,63 @@ export async function getManagerPortfolio(
   recordFirestoreReadPath("manager-portfolio.list");
   const query = normalizeManagerPortfolioQuery(queryInput);
   const refs = await currentManagedInternshipRefs(managerId);
-  const allItems = await mapWithConcurrency(refs, 6, (ref) =>
-    buildPortfolioItem(ref, managerId),
+
+  // 1. Fetch lightweight metadata for all managed items to evaluate filters, sorting, and metrics
+  const lightItems = await mapWithConcurrency(refs, 10, async (ref) => {
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+    const internship = parseInternshipDocument(snap.data());
+
+    const [internSnap, teammateAssignments] = await Promise.all([
+      adminFirestore.collection("users").doc(internship.internId).get(),
+      ref.collection("teammateAssignments").get(),
+    ]);
+
+    const intern = internSnap.exists
+      ? appUserSchema.parse(internSnap.data())
+      : { displayName: "Unknown", email: "" };
+
+    const assignmentData = teammateAssignments.docs.map((doc) => ({
+      id: doc.id,
+      ...teammateAssignmentSchema.parse(doc.data()),
+    }));
+
+    const currentMentors = assignmentData.filter(
+      (a) =>
+        a.responsibilities.includes("mentor") &&
+        isOngoingOrScheduled(a as DateRange),
+    );
+
+    const mentorUserIds = currentMentors.map((a) => a.teammateUserId);
+    const mentorUsers = await getUserSummaries(mentorUserIds);
+
+    return {
+      ref,
+      id: ref.id,
+      intern: {
+        id: internship.internId,
+        displayName: intern.displayName,
+        email: intern.email,
+      },
+      status: internship.status,
+      currentStage: internship.currentStage,
+      startsAt: timestamp(internship.startsAt)!,
+      endsAt: timestamp(internship.endsAt),
+      mentorNames: currentMentors.map(
+        (a) => mentorUsers.get(a.teammateUserId)?.displayName ?? "Unknown mentor",
+      ),
+      mentorUserIds,
+    };
+  });
+
+  const validLightItems = lightItems.filter(
+    (item): item is NonNullable<typeof item> => item !== null,
   );
-  const filtered = filterAndSortPortfolio(allItems, query);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
-  const page = Math.min(query.page, totalPages);
-  const start = (page - 1) * query.pageSize;
+
+  // Collect global mentor options from all items
   const mentorOptions = [
     ...new Map(
-      allItems.flatMap((item) =>
+      validLightItems.flatMap((item) =>
         item.mentorUserIds.map((id, index) => [
           id,
           { id, displayName: item.mentorNames[index] },
@@ -378,9 +425,28 @@ export async function getManagerPortfolio(
       ),
     ).values(),
   ].sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  // 2. Perform filtering, sorting, and pagination slicing on light data
+  // Note: We cast to ManagerPortfolioItemDto for filtering compatibility with domain filters
+  const filtered = filterAndSortPortfolio(
+    validLightItems as unknown as ManagerPortfolioItemDto[],
+    query,
+  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
+  const page = Math.min(query.page, totalPages);
+  const start = (page - 1) * query.pageSize;
+  const paginatedSlice = filtered.slice(start, start + query.pageSize);
+
+  // 3. Hydrate detailed progress hub & checklist data ONLY for items on the active page
+  const items = await mapWithConcurrency(
+    paginatedSlice,
+    6,
+    (item) => buildPortfolioItem(adminFirestore.collection("internships").doc(item.id), managerId),
+  );
+
   return {
-    items: filtered.slice(start, start + query.pageSize),
-    metrics: portfolioMetrics(allItems),
+    items,
+    metrics: portfolioMetrics(validLightItems as unknown as ManagerPortfolioItemDto[]),
     total: filtered.length,
     page,
     pageSize: query.pageSize,

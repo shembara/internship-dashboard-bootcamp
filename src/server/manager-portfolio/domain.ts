@@ -54,7 +54,7 @@ export function portfolioMetrics(
     ).length,
     withOverdueActionItems: items.filter((item) => item.overdueActionItems > 0).length,
     stagesReadyToComplete: items.filter(
-      (item) => item.currentStageChecklist.readyToComplete,
+      (item) => item.currentStageChecklist?.readyToComplete,
     ).length,
   };
 }
