@@ -91,9 +91,8 @@ export const managerSidebarConfig: RoleSidebarConfig = {
       label: "Overview & Lifecycle",
       icon: FolderOpen,
       items: [
-        { label: "Internship lifecycle", href: "/manager/internships", icon: Clock3 },
-        { label: "Stage checklist", href: "/manager/internships", icon: CheckSquare },
-        { label: "Internship status", href: "/manager/internships", icon: Activity },
+        { label: "Stage checklist", href: "stage-checklist", icon: CheckSquare },
+        { label: "Internship status", href: "internship-status", icon: Activity },
       ],
     },
     {
@@ -102,8 +101,8 @@ export const managerSidebarConfig: RoleSidebarConfig = {
       items: [
         { label: "Weekly overview", href: "weekly-overview", icon: FileText },
         { label: "Intern reflections", href: "intern-reflections", icon: MessageSquareText },
-        { label: "Achievements", href: "/manager/internships", icon: Award },
-        { label: "Internship timeline", href: "/manager/internships", icon: Clock3 },
+        { label: "Achievements", href: "achievements", icon: Award },
+        { label: "Internship timeline", href: "internship-timeline", icon: Clock3 },
         { label: "History", href: "history", icon: History },
       ],
     },
@@ -122,8 +121,8 @@ export const managerSidebarConfig: RoleSidebarConfig = {
       label: "Team & Administration",
       icon: Users,
       items: [
-        { label: "Assignments", href: "/manager/internships", icon: UserCheck },
-        { label: "Manage assignments", href: "/manager/people", icon: Settings },
+        { label: "Assignments", href: "assignments", icon: UserCheck },
+        { label: "Manage assignments", href: "managers", icon: Settings },
       ],
     },
   ],
@@ -146,7 +145,7 @@ export const mentorSidebarConfig: RoleSidebarConfig = {
       icon: FolderOpen,
       items: [
         { label: "Internship lifecycle", href: "#internship-lifecycle", icon: Clock3 },
-        { label: "Stage checklist", href: "#final-review-checklist", icon: CheckSquare },
+        { label: "Stage checklist", href: "#stage-checklist-heading", icon: CheckSquare },
       ],
     },
     {
