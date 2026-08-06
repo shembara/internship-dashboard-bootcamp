@@ -129,6 +129,14 @@ const statusHistorySchema = z.object({
   changedBy: z.string().min(1),
   reason: z.string().optional(),
 });
+export function areRequiredChecklistItemsComplete(
+  items: readonly { key: string; type: "required" | "recommended" }[],
+  progressItems: Record<string, { completed: boolean }>,
+) {
+  return items
+    .filter((item) => item.type === "required")
+    .every((item) => progressItems[item.key]?.completed === true);
+}
 
 function timestamp(value: Timestamp | undefined) {
   return value?.toDate().toISOString();
@@ -702,32 +710,43 @@ export async function transitionInternshipStatus(
       managerId,
     );
 
-    let nextStatus: InternshipStatus;
-    switch (command.action) {
-      case "pause":
-        if (internship.status !== "active") {
-          throw new Error("Only active internships can be paused.");
-        }
-        nextStatus = "paused";
-        break;
-      case "resume":
-        if (internship.status !== "paused") {
-          throw new Error("Only paused internships can be resumed.");
-        }
-        nextStatus = "active";
-        break;
-      case "cancel":
-        if (!isOperationalInternshipStatus(internship.status)) {
-          throw new Error("Completed or cancelled internships cannot be cancelled.");
-        }
-        nextStatus = "cancelled";
-        break;
-      case "complete":
-        if (!isOperationalInternshipStatus(internship.status)) {
-          throw new Error("Completed or cancelled internships cannot be completed.");
-        }
-        nextStatus = "completed";
-        break;
+    const guardRef = adminFirestore
+      .collection("internshipGuards")
+      .doc(internship.internId);
+    const [progressSnapshot, guard] = await Promise.all([
+      transaction.get(ref.collection("stageProgress").doc("finalReview")),
+      transaction.get(guardRef),
+    ]);
+    assertOperationalInternship(internship);
+    const nextStatus = transitionTarget(internship.status, command.action);
+    if (nextStatus === "completed") {
+      if (internship.currentStage !== "finalReview") {
+        throw new Error("Only Final Review internships can be completed.");
+      }
+      if (!progressSnapshot.exists) throw new Error("Final Review is not complete.");
+      const progress = stageProgressSchema.parse(progressSnapshot.data());
+      const template = getStageChecklistTemplate("finalReview");
+      if (
+        progress.stage !== "finalReview" ||
+        !progress.completedAt ||
+        !areRequiredChecklistItemsComplete(
+          [...template.items, ...progress.customItems],
+          progress.items,
+        )
+      ) {
+        throw new Error("Complete every required Final Review item first.");
+      }
+    }
+    const completionDate =
+      command.completionDate ?? dateInApplicationTimeZone(Timestamp.now());
+    const completedAt = Timestamp.fromDate(new Date(`${completionDate}T00:00:00.000Z`));
+    if (
+      nextStatus === "completed" &&
+      completedAt.toMillis() < internship.startsAt.toMillis()
+    ) {
+      throw new Error(
+        "The completion date cannot be before the internship start date.",
+      );
     }
 
     const updates: Record<string, unknown> = {
