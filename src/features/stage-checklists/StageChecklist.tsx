@@ -9,7 +9,11 @@ import type {
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
-import { internshipSkills, type InternshipSkill } from "@/lib/skills/types";
+import {
+  customTaskPointLimits,
+  internshipSkills,
+  type InternshipSkill,
+} from "@/lib/skills/types";
 
 const columns = [
   { status: "todo", title: "To do" },
@@ -201,7 +205,15 @@ function AddTaskForm({
       </label>
       <label className="block space-y-1.5 text-sm font-medium">
         Weight
-        <input type="number" min="1" max="10" className="w-full rounded-lg border bg-background px-3 py-2 font-normal" value={weight} onChange={(event) => setWeight(event.target.value)} required />
+        <input
+          type="number"
+          min={customTaskPointLimits.min}
+          max={customTaskPointLimits.max}
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          required
+        />
       </label>
       <label className="block space-y-1.5 text-sm font-medium">
         Type
@@ -407,7 +419,7 @@ export function StageChecklist({
             <div key={skill.skill} className="flex items-center justify-between gap-2 text-sm">
               <span>{skill.label}</span>
               <span className="text-muted-foreground">
-                {skill.completedPoints}/{skill.totalPoints}
+                {skill.completedPoints}/{skill.maxPoints} · {skill.percentage}%
               </span>
             </div>
           ))}

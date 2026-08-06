@@ -14,10 +14,16 @@ import {
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import {
+  customTaskPointLimits,
   internshipSkills,
   type InternshipSkill,
+  type SkillPointItem,
   type SkillProgressDto,
 } from "@/lib/skills/types";
+import {
+  calculateSkillProgress,
+  exceedsSkillPointTargets,
+} from "@/lib/skills/progress";
 import {
   isCurrent,
   isCurrentManagerAssignment,
@@ -59,7 +65,12 @@ export const createChecklistItemSchema = z.object({
   label: z.string().trim().min(1).max(160),
   type: z.enum(["required", "recommended"]),
   skills: z.array(z.enum(skillValues)).min(1).max(2),
-  weight: z.number().int().min(1).max(10).default(1),
+  weight: z
+    .number()
+    .int()
+    .min(customTaskPointLimits.min)
+    .max(customTaskPointLimits.max)
+    .default(customTaskPointLimits.min),
 });
 
 export const deleteChecklistItemSchema = z.object({
@@ -87,7 +98,12 @@ const customItemSchema = z.object({
   label: z.string().min(1).max(160),
   type: z.enum(["required", "recommended"]),
   skills: z.array(z.enum(skillValues)).min(1).max(2).default(["technical"]),
-  weight: z.number().int().min(1).max(10).default(1),
+  weight: z
+    .number()
+    .int()
+    .min(customTaskPointLimits.min)
+    .max(customTaskPointLimits.max)
+    .default(customTaskPointLimits.min),
   createdAt: z.instanceof(Timestamp).optional(),
   createdBy: z.string().min(1),
 });
@@ -399,25 +415,24 @@ function stageChecklistDto(
 }
 
 function internshipSkillProgress(progressByStage: Map<InternshipStage, StageProgress>) {
-  return internshipSkills.map<SkillProgressDto>(({ value: skill, label }) => {
-    let completedPoints = 0;
-    let totalPoints = 0;
-    for (const { value: stage } of internshipStages) {
-      const progress = progressByStage.get(stage) ?? initialReadOnlyStageProgress(stage);
-      const definitions = [
-        ...getStageChecklistTemplate(stage).items,
-        ...progress.customItems,
-      ];
-      for (const item of definitions) {
-        if (!item.skills.includes(skill)) continue;
-        totalPoints += item.weight;
+  return calculateSkillProgress(skillPointItems(progressByStage));
+}
+
+function skillPointItems(
+  progressByStage: Map<InternshipStage, StageProgress>,
+): SkillPointItem[] {
+  return internshipStages.flatMap(({ value: stage }) => {
+    const progress = progressByStage.get(stage) ?? initialReadOnlyStageProgress(stage);
+    return [...getStageChecklistTemplate(stage).items, ...progress.customItems].map(
+      (item) => {
         const itemProgress = progress.items[item.key];
-        if (itemProgress?.status === "done" || itemProgress?.completed) {
-          completedPoints += item.weight;
-        }
-      }
-    }
-    return { skill, label, completedPoints, totalPoints };
+        return {
+          skills: item.skills,
+          weight: item.weight,
+          completed: itemProgress?.status === "done" || itemProgress?.completed === true,
+        };
+      },
+    );
   });
 }
 
@@ -540,6 +555,27 @@ export async function updateChecklistItem(
         ? { completedAt: FieldValue.serverTimestamp(), completedBy: userId }
         : {}),
     };
+    if (input.status === "done") {
+      const progressSnapshots = await transaction.get(
+        internshipRef.collection("stageProgress"),
+      );
+      const progressByStage = new Map<InternshipStage, StageProgress>();
+      for (const progressSnapshot of progressSnapshots.docs) {
+        const stage = internshipStages.find(
+          (candidate) => candidate.value === progressSnapshot.id,
+        )?.value;
+        if (stage) {
+          progressByStage.set(stage, parseStageProgress(progressSnapshot.data(), stage));
+        }
+      }
+      progressByStage.set(input.stage, {
+        ...(progress ?? initialReadOnlyStageProgress(input.stage)),
+        items: items as Record<string, z.infer<typeof itemProgressSchema>>,
+      });
+      if (exceedsSkillPointTargets(skillPointItems(progressByStage))) {
+        throw new Error("Completing this task would exceed a skill's maximum points.");
+      }
+    }
     const allDefinitions = [
       ...getStageChecklistTemplate(input.stage).items,
       ...(progress?.customItems ?? []),
