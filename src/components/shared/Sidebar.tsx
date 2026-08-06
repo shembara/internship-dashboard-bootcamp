@@ -69,7 +69,7 @@ function resolveHref({
     return `/manager/internships/${internshipId}/${href}`;
   }
 
-  // Обробка для ментора (teammate)
+  // Mentor / teammate workspace relative route resolution
   if (role === "teammate" && internshipId) {
     if (href.startsWith("#")) {
       return `/teammate/internships/${internshipId}${href}`;
@@ -113,14 +113,33 @@ function isItemActive({
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function isGroupActive(group: SidebarGroup, pathname: string, hash: string) {
-  return group.items.some((item) =>
-    isItemActive({
-      href: item.href.startsWith("#") ? `${pathname}${item.href}` : item.href,
+function isGroupActive({
+  group,
+  pathname,
+  hash,
+  role,
+  internshipId,
+}: {
+  group: SidebarGroup;
+  pathname: string;
+  hash: string;
+  role: SidebarRole | null;
+  internshipId: string | null;
+}) {
+  return group.items.some((item) => {
+    const resolvedHref = resolveHref({
+      href: item.href,
+      pathname,
+      role,
+      internshipId,
+    });
+
+    return isItemActive({
+      href: resolvedHref,
       pathname,
       hash,
-    }),
-  );
+    });
+  });
 }
 
 export function Sidebar({ roles }: SidebarProps) {
@@ -164,7 +183,13 @@ export function Sidebar({ roles }: SidebarProps) {
       >
         {groups.map((group) => {
           const GroupIcon = group.icon;
-          const groupActive = isGroupActive(group, pathname, hash);
+          const groupActive = isGroupActive({
+            group,
+            pathname,
+            hash,
+            role,
+            internshipId,
+          });
 
           return (
             <div
