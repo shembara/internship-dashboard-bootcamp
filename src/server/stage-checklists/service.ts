@@ -10,6 +10,7 @@ import type {
 import {
   getStageChecklistTemplate,
   type ChecklistCompletionActor,
+  type StageChecklistItemTemplate,
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import {
@@ -37,10 +38,12 @@ export const checklistItemMutationSchema = z.object({
   status: z.enum(["todo", "inProgress", "done"]),
 });
 
-export const checklistItemReviewSchema = z.object({
-  stage: z.enum(stageValues),
-  comment: z.string().trim().min(1).max(1_000),
-}).strict();
+export const checklistItemReviewSchema = z
+  .object({
+    stage: z.enum(stageValues),
+    comment: z.string().trim().min(1).max(1_000),
+  })
+  .strict();
 
 export const createChecklistItemSchema = z.object({
   stage: z.enum(stageValues),
@@ -118,6 +121,32 @@ function initialItems(stage: InternshipStage) {
       { completed: false, status: "todo" as const },
     ]),
   );
+}
+
+function checklistItemDefinition(
+  stage: InternshipStage,
+  progress: StageProgress,
+  key: string,
+): StageChecklistItemTemplate | undefined {
+  const templateItem = getStageChecklistTemplate(stage).items.find(
+    (item) => item.key === key,
+  );
+  if (templateItem) return templateItem;
+
+  const customItem = progress.customItems.find((item) => item.key === key);
+  return customItem
+    ? {
+        ...customItem,
+        allowedCompletionActors: ["intern", "mentor", "manager"],
+      }
+    : undefined;
+}
+
+export function canCompleteChecklistItem(
+  item: Pick<StageChecklistItemTemplate, "allowedCompletionActors">,
+  completionActors: readonly ChecklistCompletionActor[],
+) {
+  return completionActors.some((actor) => item.allowedCompletionActors.includes(actor));
 }
 
 function initialStageProgress(stage: InternshipStage, actorId: string) {
@@ -317,6 +346,7 @@ function stageChecklistDto(
       canComplete:
         isMutable &&
         !isStageCompleted &&
+        canCompleteChecklistItem(item, access.completionActors) &&
         access.canMoveTasks,
       canDelete:
         isMutable &&
@@ -440,15 +470,15 @@ export async function updateChecklistItem(
         "You cannot update tasks for this internship.",
       );
     }
-    const definitions = [
-      ...getStageChecklistTemplate(input.stage).items,
-      ...(progress?.customItems ?? []).map((item) => ({
-        ...item,
-        allowedCompletionActors: ["intern", "mentor", "manager"] as const,
-      })),
-    ];
-    const item = definitions.find((candidate) => candidate.key === input.itemKey);
+    const activeProgress = progress ?? initialReadOnlyStageProgress(input.stage);
+    const item = checklistItemDefinition(input.stage, activeProgress, input.itemKey);
     if (!item) throw new Error("Task not found.");
+    if (!canCompleteChecklistItem(item, access.completionActors)) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "You cannot update this task for this internship.",
+      );
+    }
     const items: Record<string, unknown> = {
       ...(progress?.items ?? initialItems(input.stage)),
     };
@@ -674,16 +704,13 @@ export async function deleteChecklistItem(
         const task = items[item.key] as z.infer<typeof itemProgressSchema>;
         return task?.status === "done" || task?.completed;
       });
-    transaction.update(
-      progressRef,
-      {
-        customItems: remainingCustomItems,
-        items,
-        reviewStatus: requiredComplete ? "underReview" : "active",
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: userId,
-      },
-    );
+    transaction.update(progressRef, {
+      customItems: remainingCustomItems,
+      items,
+      reviewStatus: requiredComplete ? "underReview" : "active",
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: userId,
+    });
   });
   const updated = await internshipRef.get();
   return getStageChecklist(

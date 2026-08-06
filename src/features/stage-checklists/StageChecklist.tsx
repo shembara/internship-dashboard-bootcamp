@@ -388,9 +388,7 @@ export function StageChecklist({
                   <TaskCard
                     key={item.key}
                     item={item}
-                    pending={
-                      pending === item.key || pending === `delete-${item.key}`
-                    }
+                    pending={pending === item.key || pending === `delete-${item.key}`}
                     onDelete={() =>
                       mutate(
                         `/api/internships/${internshipId}/stage-checklist/tasks`,

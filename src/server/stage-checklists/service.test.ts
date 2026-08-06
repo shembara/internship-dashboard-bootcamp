@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import type { InternshipDocument } from "@/server/internships/domain";
 
-import { checklistItemReviewSchema, resolveChecklistAccess } from "./service";
+import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
+
+import {
+  canCompleteChecklistItem,
+  checklistItemReviewSchema,
+  resolveChecklistAccess,
+} from "./service";
 
 const now = Timestamp.now();
 
@@ -54,6 +60,16 @@ const currentMentorAssignment = {
 };
 
 describe("checklist access", () => {
+  it("does not let an intern complete a mentor-or-manager-only task", () => {
+    const finalOutcome = getStageChecklistTemplate("finalReview").items.find(
+      (item) => item.key === "mentor-final-outcome-recommendation-submitted",
+    )!;
+
+    expect(canCompleteChecklistItem(finalOutcome, ["intern"])).toBe(false);
+    expect(canCompleteChecklistItem(finalOutcome, ["mentor"])).toBe(true);
+    expect(canCompleteChecklistItem(finalOutcome, ["manager"])).toBe(true);
+  });
+
   it("denies an assigned intern without the intern role", () => {
     expect(() =>
       resolveChecklistAccess(

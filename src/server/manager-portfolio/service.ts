@@ -129,6 +129,14 @@ const statusHistorySchema = z.object({
   changedBy: z.string().min(1),
   reason: z.string().optional(),
 });
+export function areRequiredChecklistItemsComplete(
+  items: readonly { key: string; type: "required" | "recommended" }[],
+  progressItems: Record<string, { completed: boolean }>,
+) {
+  return items
+    .filter((item) => item.type === "required")
+    .every((item) => progressItems[item.key]?.completed === true);
+}
 
 function timestamp(value: Timestamp | undefined) {
   return value?.toDate().toISOString();
@@ -619,9 +627,10 @@ export async function transitionInternshipStatus(
       if (
         progress.stage !== "finalReview" ||
         !progress.completedAt ||
-        !template.items
-          .filter((item) => item.type === "required")
-          .every((item) => progress.items[item.key]?.completed === true)
+        !areRequiredChecklistItemsComplete(
+          [...template.items, ...progress.customItems],
+          progress.items,
+        )
       ) {
         throw new Error("Complete every required Final Review item first.");
       }
