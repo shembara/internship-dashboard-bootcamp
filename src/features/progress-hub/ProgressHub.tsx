@@ -527,7 +527,13 @@ function ActionItems({
   );
 }
 
-function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDto[] }) {
+function SubmittedReflections({
+  reflections,
+  isInternViewer = false,
+}: {
+  reflections: WeeklyReflectionDto[];
+  isInternViewer?: boolean;
+}) {
   const fields = [
     ["Accomplishments", "accomplishments"],
     ["Learnings", "learnings"],
@@ -538,14 +544,23 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
 
   return (
     <Section
-      title="Intern reflections"
-      description="Submitted weekly reflections from the intern. Drafts are private to the intern."
+      title={isInternViewer ? "My reflections" : "Intern reflections"}
+      description={
+        isInternViewer
+          ? "Your weekly reflections history."
+          : "Submitted weekly reflections from the intern. Drafts are private to the intern."
+      }
     >
       {reflections.length ? (
         <ol className="space-y-3">
           {reflections.map((reflection) => (
             <li key={reflection.weekKey} className="rounded-lg border p-4">
-              <h3 className="font-medium">{reflection.weekKey}</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">{reflection.weekKey}</h3>
+                <span className="text-xs text-muted-foreground capitalize">
+                  {stateLabel(reflection.state)}
+                </span>
+              </div>
               <dl className="mt-3 grid gap-3 md:grid-cols-2">
                 {fields.map(([label, key]) => (
                   <div key={key}>
@@ -562,7 +577,7 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
           ))}
         </ol>
       ) : (
-        <p className="text-sm text-muted-foreground">No submitted reflections yet.</p>
+        <p className="text-sm text-muted-foreground">No reflections yet.</p>
       )}
     </Section>
   );
@@ -688,9 +703,12 @@ export function ProgressHub({
           }
         />
       ) : null}
-      {hub.viewer !== "intern" ? (
-        <SubmittedReflections reflections={hub.reflections} />
-      ) : null}
+      <SubmittedReflections
+        reflections={
+          hub.viewer === "intern" ? hub.reflectionHistory : hub.reflections
+        }
+        isInternViewer={hub.viewer === "intern"}
+      />
       <Agenda
         hub={hub}
         disabled={pendingMutation}
