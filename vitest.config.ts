@@ -23,6 +23,7 @@ export default defineConfig({
     env: {
       GOOGLE_APPLICATION_CREDENTIALS: "",
     },
+    setupFiles: ["test/setup-tests.ts"],
     exclude: ["**/*.integration.test.ts", "e2e/**", "node_modules/**"],
   },
 });
