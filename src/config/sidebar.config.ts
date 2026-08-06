@@ -146,7 +146,6 @@ export const mentorSidebarConfig: RoleSidebarConfig = {
       icon: FolderOpen,
       items: [
         { label: "Internship lifecycle", href: "internship-lifecycle", icon: Clock3 },
-        { label: "Stage checklist", href: "stage-checklist", icon: CheckSquare },
       ],
     },
     {

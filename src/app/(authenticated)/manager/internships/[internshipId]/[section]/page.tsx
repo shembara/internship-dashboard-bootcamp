@@ -115,11 +115,9 @@ export default async function ManagerInternshipSectionPage({
         <InternshipLifecycle
           status={detail.internship.status}
           currentStage={detail.internship.currentStage}
+          checklist={detail.internship.checklist}
+          internshipId={internshipId}
         />
-      ) : null}
-
-      {section === "stage-checklist" && detail.internship.checklist ? (
-        <StageChecklist internshipId={internshipId} checklist={detail.internship.checklist} />
       ) : null}
 
       {section === "internship-status" ? (

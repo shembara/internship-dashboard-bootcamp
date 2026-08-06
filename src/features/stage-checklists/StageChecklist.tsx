@@ -239,7 +239,9 @@ export function StageChecklist({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="stage-checklist-heading" className="text-lg font-semibold">
-            {checklist.stageLabel} tasks
+            {checklist.stageLabel.toLowerCase().endsWith("tasks")
+              ? checklist.stageLabel
+              : `${checklist.stageLabel} tasks`}
           </h2>
           <p className="text-sm text-muted-foreground">
             {checklist.requiredCompletedCount} of {checklist.requiredTotalCount}{" "}

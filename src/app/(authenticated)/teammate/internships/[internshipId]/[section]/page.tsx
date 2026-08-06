@@ -91,11 +91,12 @@ export default async function TeammateInternshipSectionPage({
       </div>
 
       {section === "internship-lifecycle" ? (
-        <InternshipLifecycle status={internship.status} currentStage={internship.currentStage} />
-      ) : null}
-
-      {section === "stage-checklist" && internship.checklist ? (
-        <StageChecklist internshipId={internshipId} checklist={internship.checklist} />
+        <InternshipLifecycle
+          status={internship.status}
+          currentStage={internship.currentStage}
+          checklist={internship.checklist}
+          internshipId={internshipId}
+        />
       ) : null}
 
       {isProgressHub && internship.progressHub ? (
