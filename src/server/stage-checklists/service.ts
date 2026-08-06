@@ -14,6 +14,11 @@ import {
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import {
+  internshipSkills,
+  type InternshipSkill,
+  type SkillProgressDto,
+} from "@/lib/skills/types";
+import {
   isCurrent,
   isCurrentManagerAssignment,
   managerAssignmentDocumentSchema,
@@ -30,6 +35,10 @@ import { appUserSchema } from "@/server/users/app-user";
 const stageValues = internshipStages.map(({ value }) => value) as [
   InternshipStage,
   ...InternshipStage[],
+];
+const skillValues = internshipSkills.map(({ value }) => value) as [
+  InternshipSkill,
+  ...InternshipSkill[],
 ];
 
 export const checklistItemMutationSchema = z.object({
@@ -49,6 +58,8 @@ export const createChecklistItemSchema = z.object({
   stage: z.enum(stageValues),
   label: z.string().trim().min(1).max(160),
   type: z.enum(["required", "recommended"]),
+  skills: z.array(z.enum(skillValues)).min(1).max(2),
+  weight: z.number().int().min(1).max(10).default(1),
 });
 
 export const deleteChecklistItemSchema = z.object({
@@ -75,6 +86,8 @@ const customItemSchema = z.object({
   key: z.string().min(1).max(120),
   label: z.string().min(1).max(160),
   type: z.enum(["required", "recommended"]),
+  skills: z.array(z.enum(skillValues)).min(1).max(2).default(["technical"]),
+  weight: z.number().int().min(1).max(10).default(1),
   createdAt: z.instanceof(Timestamp).optional(),
   createdBy: z.string().min(1),
 });
@@ -322,6 +335,7 @@ function stageChecklistDto(
   progress: StageProgress,
   access: ChecklistAccess,
   isMutable: boolean,
+  skillProgress: SkillProgressDto[],
 ): StageChecklistDto {
   const template = getStageChecklistTemplate(stage);
   const isStageCompleted = Boolean(progress.completedAt);
@@ -339,6 +353,8 @@ function stageChecklistDto(
       key: item.key,
       label: item.label,
       type: item.type,
+      skills: [...item.skills],
+      weight: item.weight,
       status,
       completed: status === "done",
       completedAt: itemProgress.completedAt?.toDate().toISOString(),
@@ -361,7 +377,6 @@ function stageChecklistDto(
   const reviewStatus = isStageCompleted
     ? "completed"
     : (progress.reviewStatus ?? (requiredComplete ? "underReview" : "active"));
-
   return {
     stage,
     stageLabel: internshipStages.find((candidate) => candidate.value === stage)!.label,
@@ -379,7 +394,31 @@ function stageChecklistDto(
     latestReviewRequest: progress.reviewRequests.at(-1)?.comment,
     reviewStatus,
     canViewAllStages: access.canViewAllStages,
+    skillProgress,
   };
+}
+
+function internshipSkillProgress(progressByStage: Map<InternshipStage, StageProgress>) {
+  return internshipSkills.map<SkillProgressDto>(({ value: skill, label }) => {
+    let completedPoints = 0;
+    let totalPoints = 0;
+    for (const { value: stage } of internshipStages) {
+      const progress = progressByStage.get(stage) ?? initialReadOnlyStageProgress(stage);
+      const definitions = [
+        ...getStageChecklistTemplate(stage).items,
+        ...progress.customItems,
+      ];
+      for (const item of definitions) {
+        if (!item.skills.includes(skill)) continue;
+        totalPoints += item.weight;
+        const itemProgress = progress.items[item.key];
+        if (itemProgress?.status === "done" || itemProgress?.completed) {
+          completedPoints += item.weight;
+        }
+      }
+    }
+    return { skill, label, completedPoints, totalPoints };
+  });
 }
 
 async function ensureStageProgress(
@@ -420,15 +459,27 @@ export async function getStageChecklist(
     internship.status === "active" && selectedStage === internship.currentStage
       ? await ensureStageProgress(internshipRef, selectedStage, userId)
       : internshipRef.collection("stageProgress").doc(selectedStage);
-  const progress = await progressRef.get();
+  const [progress, allProgress] = await Promise.all([
+    progressRef.get(),
+    internshipRef.collection("stageProgress").get(),
+  ]);
+  const progressByStage = new Map<InternshipStage, StageProgress>();
+  for (const document of allProgress.docs) {
+    const stage = internshipStages.find((candidate) => candidate.value === document.id)
+      ?.value;
+    if (stage) progressByStage.set(stage, parseStageProgress(document.data(), stage));
+  }
+  const selectedProgress = progress.exists
+    ? parseStageProgress(progress.data(), selectedStage)
+    : initialReadOnlyStageProgress(selectedStage);
+  progressByStage.set(selectedStage, selectedProgress);
 
   return stageChecklistDto(
     selectedStage,
-    progress.exists
-      ? parseStageProgress(progress.data(), selectedStage)
-      : initialReadOnlyStageProgress(selectedStage),
+    selectedProgress,
     access,
     internship.status === "active" && selectedStage === internship.currentStage,
+    internshipSkillProgress(progressByStage),
   );
 }
 
@@ -629,6 +680,8 @@ export async function createChecklistItem(
             key,
             label: input.label,
             type: input.type,
+            skills: input.skills,
+            weight: input.weight,
             createdAt: Timestamp.now(),
             createdBy: userId,
           },

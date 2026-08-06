@@ -1,4 +1,5 @@
 import { type InternshipStage } from "@/lib/internships/types";
+import type { InternshipSkill } from "@/lib/skills/types";
 
 export const checklistCompletionActors = ["intern", "mentor", "manager"] as const;
 
@@ -9,6 +10,8 @@ export type StageChecklistItemTemplate = {
   key: string;
   label: string;
   type: ChecklistItemType;
+  skills: readonly InternshipSkill[];
+  weight: number;
   allowedCompletionActors: readonly ChecklistCompletionActor[];
 };
 
@@ -16,6 +19,77 @@ export type StageChecklistTemplate = {
   stage: InternshipStage;
   items: readonly StageChecklistItemTemplate[];
 };
+
+const checklistItemSkills: Record<string, readonly InternshipSkill[]> = {
+  "accounts-and-tools-configured": ["technical"],
+  "project-repository-access-received": ["technical"],
+  "jira-access-received": ["productUnderstanding"],
+  "slack-channels-joined": ["collaboration"],
+  "local-project-launched": ["technical"],
+  "development-environment-verified": ["technical", "communication"],
+  "mentor-one-on-one-scheduled": ["communication"],
+  "introductory-meetings-completed": ["communication", "collaboration"],
+  "team-ceremonies-added": ["collaboration"],
+  "project-documentation-reviewed": ["productUnderstanding"],
+  "product-purpose-reviewed": ["productUnderstanding"],
+  "architecture-overview-reviewed": ["technical"],
+  "development-pr-workflow-reviewed": ["technical", "codeQuality"],
+  "testing-expectations-discussed": ["codeQuality"],
+  "first-jira-task-selected": ["planning"],
+  "first-task-expectations-discussed": ["planning", "communication"],
+  "read-merged-pull-requests": ["codeQuality"],
+  "unfamiliar-terms-noted": ["productUnderstanding"],
+  "mentor-questions-prepared": ["communication"],
+  "area-owners-learned": ["collaboration"],
+  "team-discussions-followed": ["collaboration"],
+  "feedback-requested-early": ["communication", "ownership"],
+  "first-task-requirements-reviewed": ["planning"],
+  "ambiguities-clarified-before-implementation": ["communication", "planning"],
+  "implementation-approach-discussed": ["technical", "communication"],
+  "first-implementation-completed": ["technical"],
+  "first-pull-request-opened": ["codeQuality"],
+  "pull-request-description-complete": ["codeQuality", "communication"],
+  "code-review-received": ["collaboration"],
+  "review-comments-addressed": ["codeQuality", "ownership"],
+  "first-pull-request-merged": ["technical", "codeQuality"],
+  "first-jira-task-completed": ["ownership"],
+  "task-learnings-discussed": ["communication"],
+  "first-task-lessons-documented": ["ownership"],
+  "another-merged-pull-request-reviewed": ["codeQuality"],
+  "next-task-questions-prepared": ["planning"],
+  "task-broken-down-into-subtasks-before-starting": ["planning"],
+  "unit-and-integration-tests-written": ["technical", "codeQuality"],
+  "review-conducted-on-someone-elses-pr": ["codeQuality", "collaboration"],
+  "bug-fixed-from-bug-report": ["technical"],
+  "task-estimate-compared-to-actual-time": ["planning"],
+  "sprint-planning-participated": ["planning", "collaboration"],
+  "existing-code-improvement-proposed": ["technical", "ownership"],
+  "product-decisions-observed-and-opinion-given": ["productUnderstanding", "communication"],
+  "feature-demo-given-to-team-and-client": ["communication", "ownership"],
+  "task-carried-through-full-cycle-independently": ["ownership", "technical"],
+  "technical-proposal-or-decision-made": ["leadership", "technical"],
+  "refinement-or-estimation-led-for-teammate": ["leadership", "planning"],
+  "production-issue-or-edge-case-fixed-independently": ["technical", "ownership"],
+  "full-code-review-given-with-feedback": ["codeQuality", "leadership"],
+  "technical-decision-shared-with-team": ["leadership", "communication"],
+  "internship-progress-self-review-analyzed": ["ownership"],
+  "mentor-feedback-given": ["communication"],
+  "completed-tasks-and-features-summary-prepared": ["communication", "ownership"],
+  "self-assessment-form-submitted": ["ownership"],
+  "mentor-and-team-feedback-collected": ["collaboration"],
+  "final-one-on-one-conversation-held": ["communication"],
+  "mentor-final-outcome-recommendation-submitted": ["leadership"],
+  "personal-development-plan-drafted": ["planning", "ownership"],
+  "three-month-journey-presentation-shared": ["communication"],
+  "internship-process-survey-completed": ["ownership"],
+  "team-thanked-and-contacts-exchanged": ["collaboration"],
+};
+
+function skillsFor(key: string) {
+  const skills = checklistItemSkills[key];
+  if (!skills) throw new Error(`Missing skill mapping for checklist item ${key}.`);
+  return skills;
+}
 
 const internItem = (
   key: string,
@@ -25,6 +99,8 @@ const internItem = (
   key,
   label,
   type,
+  skills: skillsFor(key),
+  weight: 1,
   allowedCompletionActors: ["intern", "mentor", "manager"],
 });
 
@@ -36,6 +112,8 @@ const mentorOrManagerItem = (
   key,
   label,
   type,
+  skills: skillsFor(key),
+  weight: 1,
   allowedCompletionActors: ["mentor", "manager"],
 });
 

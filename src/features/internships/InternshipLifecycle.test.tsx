@@ -79,6 +79,7 @@ describe("InternshipLifecycle", () => {
           canAddTasks: false,
           reviewStatus: "completed",
           canViewAllStages: false,
+          skillProgress: [],
         }}
       />,
     );
