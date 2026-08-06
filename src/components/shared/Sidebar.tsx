@@ -124,6 +124,7 @@ function isGroupActive({
 export function Sidebar({ roles }: SidebarProps) {
   const pathname = usePathname();
   const [hash, setHash] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const updateHash = () => setHash(window.location.hash);
@@ -150,6 +151,13 @@ export function Sidebar({ roles }: SidebarProps) {
     return config.general;
   }, [role, internshipId]);
 
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
+
   if (!role || !groups.length) return null;
 
   const config = sidebarConfigByRole[role];
@@ -162,6 +170,7 @@ export function Sidebar({ roles }: SidebarProps) {
       >
         {groups.map((group) => {
           const GroupIcon = group.icon;
+
           const groupActive = isGroupActive({
             group,
             pathname,
@@ -170,14 +179,19 @@ export function Sidebar({ roles }: SidebarProps) {
             internshipId,
           });
 
+          const isExpanded = expandedGroups[group.label] ?? groupActive;
+
           return (
             <div
               key={group.label}
-              className="group/sidebar-folder min-w-56 shrink-0 rounded-xl md:min-w-0"
+              className="min-w-56 shrink-0 rounded-xl md:min-w-0"
             >
-              <div
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label)}
+                aria-expanded={isExpanded}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors",
+                  "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors cursor-pointer",
                   groupActive
                     ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
                     : "text-foreground hover:bg-muted",
@@ -186,47 +200,52 @@ export function Sidebar({ roles }: SidebarProps) {
                 <GroupIcon className="size-4 shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate">{group.label}</span>
                 <ChevronDown
-                  className="size-4 shrink-0 transition-transform group-hover/sidebar-folder:rotate-180 group-focus-within/sidebar-folder:rotate-180"
+                  className={cn(
+                    "size-4 shrink-0 transition-transform duration-200",
+                    isExpanded && "rotate-180",
+                  )}
                   aria-hidden="true"
                 />
-              </div>
+              </button>
 
-              <div className="hidden pt-1 group-hover/sidebar-folder:block group-focus-within/sidebar-folder:block">
-                <div className="ml-5 space-y-1 border-l border-border/80 pl-3">
-                  {group.items.map((item, itemIndex) => {
-                    const Icon = item.icon;
-                    const href = resolveHref({
-                      href: item.href,
-                      pathname,
-                      role,
-                      internshipId,
-                    });
-                    const active = isItemActive({ href, pathname, hash });
+              {isExpanded ? (
+                <div className="pt-1">
+                  <div className="ml-5 space-y-1 border-l border-border/80 pl-3">
+                    {group.items.map((item, itemIndex) => {
+                      const Icon = item.icon;
+                      const href = resolveHref({
+                        href: item.href,
+                        pathname,
+                        role,
+                        internshipId,
+                      });
+                      const active = isItemActive({ href, pathname, hash });
 
-                    return (
-                      <Link
-                        key={`${group.label}-${item.href}-${item.label}-${itemIndex}`}
-                        href={href}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                          active
-                            ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                            : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
-                        )}
-                      >
-                        <Icon className="size-4 shrink-0" aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                        {item.badge ? (
-                          <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white">
-                            {item.badge}
-                          </span>
-                        ) : null}
-                      </Link>
-                    );
-                  })}
+                      return (
+                        <Link
+                          key={`${group.label}-${item.href}-${item.label}-${itemIndex}`}
+                          href={href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                            active
+                              ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                              : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
+                          )}
+                        >
+                          <Icon className="size-4 shrink-0" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                          {item.badge ? (
+                            <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white">
+                              {item.badge}
+                            </span>
+                          ) : null}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           );
         })}
