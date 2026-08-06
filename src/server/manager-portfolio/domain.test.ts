@@ -64,12 +64,14 @@ describe("manager portfolio aggregation", () => {
     expect(metrics.withOverdueActionItems).toBe(1);
   });
 
-  it("filters by the URL-supported criteria and uses a stable fallback order", () => {
+  it("filters by attention signals and supports all sort options", () => {
     const items = [
       item({
         id: "b",
         intern: { id: "intern-b", displayName: "Bea", email: "bea@example.com" },
         mentorUserIds: ["mentor-2"],
+        latestSharedActivityAt: "2026-08-02T10:00:00.000Z",
+        overdueActionItems: 1,
       }),
       item({
         id: "a",
@@ -79,9 +81,11 @@ describe("manager portfolio aggregation", () => {
             key: "overdueActions",
             label: "Overdue actions",
             severity: "critical",
-            count: 1,
+            count: 2,
           },
         ],
+        latestSharedActivityAt: "2026-08-05T10:00:00.000Z",
+        overdueActionItems: 2,
       }),
     ];
 
@@ -100,5 +104,19 @@ describe("manager portfolio aggregation", () => {
         (entry) => entry.id,
       ),
     ).toEqual(["a"]);
+
+    // Sort by latestActivity
+    expect(
+      filterAndSortPortfolio(items, { ...query, sort: "latestActivity", direction: "desc" }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(["a", "b"]);
+
+    // Sort by overdueActions
+    expect(
+      filterAndSortPortfolio(items, { ...query, sort: "overdueActions", direction: "desc" }).map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(["a", "b"]);
   });
 });
