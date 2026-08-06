@@ -14,7 +14,10 @@ export function AppShellHeader({
   rolesLabel: string;
 }) {
   const pathname = usePathname();
-  const isDark = pathname.startsWith("/guest");
+  const isDark =
+    pathname.startsWith("/guest") ||
+    pathname === "/manager/internships" ||
+    pathname === "/manager/people";
 
   return (
     <header

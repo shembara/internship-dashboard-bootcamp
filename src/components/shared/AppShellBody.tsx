@@ -16,13 +16,15 @@ export function AppShellBody({
   const pathname = usePathname();
   const showSidebar = shouldShowSidebar(pathname, roles);
   const isGuestWorkspace = pathname.startsWith("/guest");
+  const isManagerHub =
+    pathname === "/manager/internships" || pathname === "/manager/people";
 
   return (
     <div
       className={cn(
         "grid gap-8 p-5 sm:p-8",
         showSidebar && "md:grid-cols-[240px_minmax(0,1fr)]",
-        isGuestWorkspace && "bg-[#0d1117]",
+        (isGuestWorkspace || isManagerHub) && "bg-[#0d1117]",
       )}
     >
       <Sidebar roles={roles} />
