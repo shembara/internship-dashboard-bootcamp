@@ -9,6 +9,11 @@ import type {
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
+import {
+  customTaskPointLimits,
+  internshipSkills,
+  type InternshipSkill,
+} from "@/lib/skills/types";
 
 const columns = [
   { status: "todo", title: "To do" },
@@ -60,6 +65,12 @@ function TaskCard({
           {item.type === "required" ? "Required" : "Recommended"}
         </span>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        {item.skills
+          .map((skill) => internshipSkills.find((option) => option.value === skill)?.label)
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
       {item.canComplete ? (
         <div className="mt-3 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
@@ -132,18 +143,29 @@ function AddTaskForm({
   pending,
   close,
 }: {
-  onSubmit: (label: string, type: "required" | "recommended") => Promise<boolean>;
+  onSubmit: (
+    label: string,
+    type: "required" | "recommended",
+    skills: InternshipSkill[],
+    weight: number,
+  ) => Promise<boolean>;
   pending: boolean;
   close: () => void;
 }) {
   const [label, setLabel] = useState("");
   const [type, setType] = useState<"required" | "recommended">("required");
+  const [primarySkill, setPrimarySkill] = useState<InternshipSkill>("technical");
+  const [secondarySkill, setSecondarySkill] = useState<InternshipSkill | "">("");
+  const [weight, setWeight] = useState("1");
   return (
     <form
       className="space-y-4"
       onSubmit={async (event) => {
         event.preventDefault();
-        if (await onSubmit(label, type)) close();
+        const skills = [primarySkill, secondarySkill].filter(
+          (skill): skill is InternshipSkill => Boolean(skill),
+        );
+        if (await onSubmit(label, type, skills, Number(weight))) close();
       }}
     >
       <label className="block space-y-1.5 text-sm font-medium">
@@ -154,6 +176,43 @@ function AddTaskForm({
           onChange={(event) => setLabel(event.target.value)}
           required
           maxLength={160}
+        />
+      </label>
+      <label className="block space-y-1.5 text-sm font-medium">
+        Primary skill
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={primarySkill}
+          onChange={(event) => setPrimarySkill(event.target.value as InternshipSkill)}
+        >
+          {internshipSkills.map((skill) => (
+            <option key={skill.value} value={skill.value}>{skill.label}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block space-y-1.5 text-sm font-medium">
+        Secondary skill (optional)
+        <select
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={secondarySkill}
+          onChange={(event) => setSecondarySkill(event.target.value as InternshipSkill | "")}
+        >
+          <option value="">None</option>
+          {internshipSkills.filter((skill) => skill.value !== primarySkill).map((skill) => (
+            <option key={skill.value} value={skill.value}>{skill.label}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block space-y-1.5 text-sm font-medium">
+        Weight
+        <input
+          type="number"
+          min={customTaskPointLimits.min}
+          max={customTaskPointLimits.max}
+          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={weight}
+          onChange={(event) => setWeight(event.target.value)}
+          required
         />
       </label>
       <label className="block space-y-1.5 text-sm font-medium">
@@ -270,10 +329,10 @@ export function StageChecklist({
                 <AddTaskForm
                   close={close}
                   pending={isPending}
-                  onSubmit={(label, type) =>
+                  onSubmit={(label, type, skills, weight) =>
                     mutate(
                       `/api/internships/${internshipId}/stage-checklist/tasks`,
-                      { stage: checklist.stage, label, type },
+                      { stage: checklist.stage, label, type, skills, weight },
                       "add",
                       "POST",
                     )
@@ -355,6 +414,19 @@ export function StageChecklist({
           {checklist.latestReviewRequest}
         </p>
       ) : null}
+      <section className="rounded-xl border bg-muted/30 p-3" aria-label="Skill progress">
+        <h3 className="font-semibold">Skill progress</h3>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {checklist.skillProgress.map((skill) => (
+            <div key={skill.skill} className="flex items-center justify-between gap-2 text-sm">
+              <span>{skill.label}</span>
+              <span className="text-muted-foreground">
+                {skill.completedPoints}/{skill.maxPoints} · {skill.percentage}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
       <div className="grid gap-4 md:grid-cols-3">
         {columns.map((column) => {
           const items = checklist.items.filter((item) => item.status === column.status);
