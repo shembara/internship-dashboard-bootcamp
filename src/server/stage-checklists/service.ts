@@ -14,6 +14,7 @@ import {
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import {
+<<<<<<< HEAD
   customTaskPointLimits,
   internshipSkills,
   type InternshipSkill,
@@ -25,6 +26,13 @@ import {
   exceedsSkillPointTargets,
 } from "@/lib/skills/progress";
 import {
+=======
+  internshipSkills,
+  type InternshipSkill,
+  type SkillProgressDto,
+} from "@/lib/skills/types";
+import {
+>>>>>>> 64f05f94c6a5c89c9e0262ff1d7538b097ded4c4
   isCurrent,
   isCurrentManagerAssignment,
   managerAssignmentDocumentSchema,
@@ -65,12 +73,16 @@ export const createChecklistItemSchema = z.object({
   label: z.string().trim().min(1).max(160),
   type: z.enum(["required", "recommended"]),
   skills: z.array(z.enum(skillValues)).min(1).max(2),
+<<<<<<< HEAD
   weight: z
     .number()
     .int()
     .min(customTaskPointLimits.min)
     .max(customTaskPointLimits.max)
     .default(customTaskPointLimits.min),
+=======
+  weight: z.number().int().min(1).max(10).default(1),
+>>>>>>> 64f05f94c6a5c89c9e0262ff1d7538b097ded4c4
 });
 
 export const deleteChecklistItemSchema = z.object({
@@ -98,12 +110,16 @@ const customItemSchema = z.object({
   label: z.string().min(1).max(160),
   type: z.enum(["required", "recommended"]),
   skills: z.array(z.enum(skillValues)).min(1).max(2).default(["technical"]),
+<<<<<<< HEAD
   weight: z
     .number()
     .int()
     .min(customTaskPointLimits.min)
     .max(customTaskPointLimits.max)
     .default(customTaskPointLimits.min),
+=======
+  weight: z.number().int().min(1).max(10).default(1),
+>>>>>>> 64f05f94c6a5c89c9e0262ff1d7538b097ded4c4
   createdAt: z.instanceof(Timestamp).optional(),
   createdBy: z.string().min(1),
 });
@@ -415,6 +431,7 @@ function stageChecklistDto(
 }
 
 function internshipSkillProgress(progressByStage: Map<InternshipStage, StageProgress>) {
+<<<<<<< HEAD
   return calculateSkillProgress(skillPointItems(progressByStage));
 }
 
@@ -433,6 +450,27 @@ function skillPointItems(
         };
       },
     );
+=======
+  return internshipSkills.map<SkillProgressDto>(({ value: skill, label }) => {
+    let completedPoints = 0;
+    let totalPoints = 0;
+    for (const { value: stage } of internshipStages) {
+      const progress = progressByStage.get(stage) ?? initialReadOnlyStageProgress(stage);
+      const definitions = [
+        ...getStageChecklistTemplate(stage).items,
+        ...progress.customItems,
+      ];
+      for (const item of definitions) {
+        if (!item.skills.includes(skill)) continue;
+        totalPoints += item.weight;
+        const itemProgress = progress.items[item.key];
+        if (itemProgress?.status === "done" || itemProgress?.completed) {
+          completedPoints += item.weight;
+        }
+      }
+    }
+    return { skill, label, completedPoints, totalPoints };
+>>>>>>> 64f05f94c6a5c89c9e0262ff1d7538b097ded4c4
   });
 }
 
