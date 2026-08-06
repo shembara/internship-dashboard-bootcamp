@@ -1,17 +1,36 @@
+import { Timestamp } from "firebase-admin/firestore";
+import { z } from "zod";
+
 export const SKILLS = [
-  "Technical Skills",
-  "Problem Solving",
+  "Technical understanding",
+  "Code quality",
+  "Debugging",
+  "Technical decision-making",
   "Communication",
-  "Teamwork",
-  "Autonomy",
+  "Ownership",
+  "Understanding requirements",
 ] as const;
 
-export type SkillName = (typeof SKILLS)[number];
+export type Skill = (typeof SKILLS)[number];
 
-export type SkillRatings = Record<SkillName, number>;
+// Rating object with each skill from SKILLS mapped to 0-100 number
+export const ratingsSchema = z.object(
+  Object.fromEntries(
+    SKILLS.map((s) => [s, z.number().min(0).max(100)]) as [string, z.ZodTypeAny][],
+  ) as Record<string, z.ZodTypeAny>,
+);
 
-export type SkillRatingDTO = {
-  weekKey: string;
-  ratings: SkillRatings;
-  updatedAt?: string;
-};
+export type Ratings = z.infer<typeof ratingsSchema>;
+
+export const weekKeySchema = z.string().regex(/^\d{4}-W\d{2}$/);
+
+export const skillRatingsDocumentSchema = z.object({
+  weekKey: weekKeySchema,
+  ratings: ratingsSchema,
+  createdBy: z.string().min(1),
+  createdAt: z.instanceof(Timestamp),
+  updatedBy: z.string().min(1),
+  updatedAt: z.instanceof(Timestamp),
+});
+
+export type SkillRatingsDocument = z.infer<typeof skillRatingsDocumentSchema>;

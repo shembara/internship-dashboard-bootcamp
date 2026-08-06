@@ -70,11 +70,15 @@ describe("InternshipLifecycle", () => {
           stageLabel: "Final review",
           requiredItems: [],
           recommendedItems: [],
+          items: [],
           requiredCompletedCount: 0,
           requiredTotalCount: 0,
           readyToComplete: true,
           isStageCompleted: true,
           canCompleteStage: false,
+          canAddTasks: false,
+          reviewStatus: "completed",
+          canViewAllStages: false,
         }}
       />,
     );

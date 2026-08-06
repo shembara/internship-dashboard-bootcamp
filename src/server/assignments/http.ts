@@ -6,6 +6,7 @@ import { AuthenticationError } from "@/server/auth/errors";
 import { hasValidRequestOrigin } from "@/server/auth/origin";
 import { requireRole } from "@/server/authorization/require-role";
 import { requireAuthenticatedUser } from "@/server/auth/require-user";
+import { NotFoundError, BadRequestError } from "@/server/errors";
 
 export async function requireManagerContext() {
   return requireRole(await requireAuthenticatedUser(), "manager");
@@ -27,13 +28,19 @@ export function assignmentErrorResponse(error: unknown) {
       { status: 400 },
     );
   }
+  if (error instanceof BadRequestError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (error instanceof NotFoundError) {
+    return NextResponse.json({ error: error.message }, { status: 404 });
+  }
   if (error instanceof AuthorizationError) {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
   if (error instanceof AuthenticationError) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
-  const message =
-    error instanceof Error ? error.message : "Unable to complete this request.";
-  return NextResponse.json({ error: message }, { status: 400 });
+
+  const message = error instanceof Error ? error.message : "Unable to complete this request.";
+  return NextResponse.json({ error: message }, { status: 500 });
 }

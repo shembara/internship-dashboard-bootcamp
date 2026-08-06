@@ -3,7 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import type { InternshipDocument } from "@/server/internships/domain";
 
-import { resolveChecklistAccess } from "./service";
+import { getStageChecklistTemplate } from "@/lib/stage-checklists/templates";
+
+import {
+  canCompleteChecklistItem,
+  checklistItemReviewSchema,
+  resolveChecklistAccess,
+} from "./service";
 
 const now = Timestamp.now();
 
@@ -54,6 +60,16 @@ const currentMentorAssignment = {
 };
 
 describe("checklist access", () => {
+  it("does not let an intern complete a mentor-or-manager-only task", () => {
+    const finalOutcome = getStageChecklistTemplate("finalReview").items.find(
+      (item) => item.key === "mentor-final-outcome-recommendation-submitted",
+    )!;
+
+    expect(canCompleteChecklistItem(finalOutcome, ["intern"])).toBe(false);
+    expect(canCompleteChecklistItem(finalOutcome, ["mentor"])).toBe(true);
+    expect(canCompleteChecklistItem(finalOutcome, ["manager"])).toBe(true);
+  });
+
   it("denies an assigned intern without the intern role", () => {
     expect(() =>
       resolveChecklistAccess(
@@ -99,7 +115,32 @@ describe("checklist access", () => {
         document(undefined),
         assignments(currentMentorAssignment),
       ),
-    ).toEqual({ completionActors: ["mentor"], canAdvance: true });
+    ).toMatchObject({
+      completionActors: ["mentor"],
+      canAdvance: true,
+      canMoveTasks: true,
+      canAddTasks: true,
+      canReviewTasks: true,
+      isIntern: false,
+    });
+  });
+
+  it("allows the assigned intern to move and add tasks but not review them", () => {
+    expect(
+      resolveChecklistAccess(
+        internship(),
+        "intern-1",
+        document(appUser(["intern"])),
+        document(undefined),
+        assignments(),
+      ),
+    ).toMatchObject({
+      completionActors: ["intern"],
+      canMoveTasks: true,
+      canAddTasks: true,
+      canReviewTasks: false,
+      isIntern: true,
+    });
   });
 
   it("denies inactive users even when their assignment is current", () => {
@@ -129,7 +170,7 @@ describe("checklist access", () => {
     ).toThrow("cannot view this internship");
   });
 
-  it("removes mentor advancement when the current assignment loses mentor responsibility", () => {
+  it("keeps task management restricted to the assigned mentor or manager", () => {
     const access = resolveChecklistAccess(
       internship(),
       "mentor-1",
@@ -140,6 +181,9 @@ describe("checklist access", () => {
 
     expect(access.completionActors).toEqual([]);
     expect(access.canAdvance).toBe(false);
+    expect(access.canMoveTasks).toBe(false);
+    expect(access.canAddTasks).toBe(false);
+    expect(access.canReviewTasks).toBe(false);
   });
 
   it("rejects a manager when the current assignment snapshot has been removed", () => {
@@ -152,5 +196,23 @@ describe("checklist access", () => {
         assignments(),
       ),
     ).toThrow("cannot view this internship");
+  });
+});
+
+describe("stage review requests", () => {
+  it("accepts a required comment without a per-task review action", () => {
+    expect(
+      checklistItemReviewSchema.safeParse({
+        stage: "onboarding",
+        comment: "Please update the setup notes.",
+      }).success,
+    ).toBe(true);
+    expect(
+      checklistItemReviewSchema.safeParse({
+        stage: "onboarding",
+        action: "approve",
+        comment: "Approved",
+      }).success,
+    ).toBe(false);
   });
 });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
   type UserCredential,
 } from "firebase/auth";
 import { LoaderCircle, LogIn } from "lucide-react";
@@ -60,11 +61,46 @@ export function SignInCard() {
   const environment = getClientEnvironment();
   const [pendingPersona, setPendingPersona] = useState<string>();
   const [error, setError] = useState<string>();
+  const [isResolvingRedirect, setIsResolvingRedirect] = useState(true);
 
   async function finishSignIn(credential: UserCredential) {
     await establishServerSession(credential);
     window.location.assign("/");
   }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Google's Cross-Origin-Opener-Policy on accounts.google.com can block the
+    // postMessage/window.close signal signInWithPopup relies on, so Google
+    // sign-in uses a full-page redirect instead. This effect picks the result
+    // back up after the browser returns from Google.
+    async function resolveRedirectSignIn() {
+      try {
+        const auth = getFirebaseClientAuth();
+        const credential = await getRedirectResult(auth);
+        if (credential) {
+          await finishSignIn(credential);
+          return;
+        }
+      } catch (redirectError) {
+        if (isMounted) {
+          setError(
+            redirectError instanceof Error
+              ? redirectError.message
+              : "Google sign-in failed.",
+          );
+        }
+      }
+      if (isMounted) setIsResolvingRedirect(false);
+    }
+
+    void resolveRedirectSignIn();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   async function signInWithGoogle() {
     setError(undefined);
@@ -76,7 +112,7 @@ export function SignInCard() {
       provider.setCustomParameters({
         prompt: "select_account",
       });
-      await finishSignIn(await signInWithPopup(auth, provider));
+      await signInWithRedirect(auth, provider);
     } catch (signInError) {
       setError(
         signInError instanceof Error
@@ -114,6 +150,14 @@ export function SignInCard() {
       );
       setPendingPersona(undefined);
     }
+  }
+
+  if (isResolvingRedirect) {
+    return (
+      <section className="flex w-full max-w-md items-center justify-center rounded-3xl border bg-card p-7 shadow-[0_24px_80px_rgba(22,78,63,0.10)] sm:p-9">
+        <LoaderCircle className="size-6 animate-spin text-muted-foreground" />
+      </section>
+    );
   }
 
   return (
