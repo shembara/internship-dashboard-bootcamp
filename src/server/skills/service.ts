@@ -28,6 +28,13 @@ export async function saveSkillRatings(
   const mutation = skillRatingsMutationSchema.parse(input);
   const internshipRef = adminFirestore.collection("internships").doc(internshipId);
 
+  // Enforce that only the current week may be created/updated
+  const { getWeekPeriod } = await import("@/lib/progress-hub/week");
+  const week = getWeekPeriod(mutation.weekKey);
+  if (week.state !== "current") {
+    throw new Error("Only current week records can be created or updated.");
+  }
+
   await adminFirestore.runTransaction(async (transaction) => {
     const internshipSnap = await transaction.get(internshipRef);
     if (!internshipSnap.exists) throw new Error("Internship not found.");
@@ -67,9 +74,6 @@ export async function saveSkillRatings(
       throw new Error("Internship is not writable.");
     }
 
-    // Ensure week is current: reuse simple regex validated above; more advanced week-state checks
-    // are out of scope here; caller should pass current weekKey.
-
     const now = Timestamp.now();
     const docRef = internshipRef.collection("skillRatings").doc(mutation.weekKey);
     const existing = await transaction.get(docRef);
@@ -84,8 +88,6 @@ export async function saveSkillRatings(
         updatedAt: now,
       });
     } else {
-      // If already present, prevent editing past weeks using simple rule: allow update if weekKey equals current week
-      // More strict checks may be added.
       transaction.update(docRef, {
         ratings: mutation.ratings,
         updatedBy: userId,
