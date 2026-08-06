@@ -32,16 +32,21 @@ export async function saveSkillRatings(
   const { getWeekPeriod } = await import("@/lib/progress-hub/week");
   const week = getWeekPeriod(mutation.weekKey);
   if (week.state !== "current") {
-    throw new Error("Only current week records can be created or updated.");
+    throw new (await import("@/server/errors")).BadRequestError("Only current week records can be created or updated.");
   }
 
+  // Ensure internship exists and is active inside transaction
+  // eslint-disable-next-line no-console
+  console.debug('service.saveSkillRatings: before runTransaction');
   await adminFirestore.runTransaction(async (transaction) => {
+    // eslint-disable-next-line no-console
+    console.debug('service.saveSkillRatings: inside runTransaction start');
     const internshipSnap = await transaction.get(internshipRef);
-    if (!internshipSnap.exists) throw new Error("Internship not found.");
+    if (!internshipSnap.exists) throw new (await import("@/server/errors")).NotFoundError("Internship not found.");
     const internship = parseInternshipDocument(internshipSnap.data());
 
     if (internship.status !== "active") {
-      throw new Error("Skill ratings can only be saved for an active internship.");
+      throw new (await import("@/server/errors")).BadRequestError("Skill ratings can only be saved for an active internship.");
     }
 
     // Load context needed to resolve access

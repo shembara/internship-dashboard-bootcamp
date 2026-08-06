@@ -1,7 +1,32 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isManagerForInternship(iid) {
+      return exists(/databases/$(database)/documents/internships/$(iid)/managerAssignments/$(request.auth.uid));
+    }
+
+    // Best-effort mentor check: allow if there is a teammateAssignments doc with id == uid
+    // or if the user is listed in managerAssignments. Note: teammateAssignments documents are
+    // sometimes created with random IDs and contain teammateUserId fields, which cannot be
+    // queried from security rules. For full safety, enforce mentor writes via server-side
+    // checks (the server API already restricts writes to mentors).
+    function isMentorForInternship(iid) {
+      return isManagerForInternship(iid) ||
+        exists(/databases/$(database)/documents/internships/$(iid)/teammateAssignments/$(request.auth.uid));
+    }
+
+    match /internships/{internshipId}/skillRatings/{weekKey} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && isMentorForInternship(internshipId);
+    }
+
+    // Allow read access to internship subcollections for authenticated users generally
+    match /internships/{internshipId}/{document=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Default deny for everything else
     match /{document=**} {
       allow read, write: if false;
     }

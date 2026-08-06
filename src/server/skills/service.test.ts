@@ -101,12 +101,13 @@ describe("skills service", () => {
     };
 
     // Act
+    // eslint-disable-next-line no-console
+    console.debug('test: calling saveSkillRatings');
     await saveSkillRatings(internshipId, userId, payload);
+    // eslint-disable-next-line no-console
+    console.debug('test: saveSkillRatings returned');
 
     // Assert: transaction.set should have been called (mocked in runTransaction)
-    // The mock set is on the transaction object inside runTransaction; inspect via vi mocks
-    // There's no direct reference; ensure no exception thrown and document exists in mockStore after operation simulated
-    // Since our fake transaction.set didn't persist, check that function was invoked by checking that runTransaction completed without error
     expect(true).toBe(true);
   });
 
@@ -150,11 +151,11 @@ describe("skills service", () => {
     // Our getSkillRatings implementation calls collection.doc(weekKey).get() and collection.orderBy(...).limit(...).get()
     // Adjust adminFirestoreMock to return doc for specific doc path via transaction.get logic is not used here
     // Instead override adminFirestoreMock.collection to handle skillRatings specially
-    adminFirestoreMock.collection = (name: string) => ({
-      doc: (id: string) => ({ _path: `${name}/${id}`, id }),
-      orderBy: () => ({ limit: () => ({ get: async () => ({ docs: [( { data: () => docData } )] }) }) }),
-      where: (_f: string, _op: string, _val: string) => ({ _path: `${name}`, _whereVal: _val }),
-    });
+    (adminFirestoreMock as any).collection = (name: string) => ({
+      doc: (id: string) => ({ _path: `${name}/${id}`, id, get: async () => ({ exists: true, data: () => docData }) }),
+      orderBy: () => ({ limit: () => ({ get: async () => ({ docs: [({ data: () => docData } as any)] }) }) }),
+      where: (_f: string, _op: string, _val: string) => ({ _path: `${name}`, _whereVal: _val, get: async () => ({ docs: [({ data: () => docData } as any)] }) }),
+    } as any);
 
     // Provide get for top-level internship/doc
     mockStore[`internships/${internshipId}`] = {
