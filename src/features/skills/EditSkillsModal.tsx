@@ -69,11 +69,10 @@ export function EditSkillsModal({
           </button>
         </div>
 
-
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
             {SKILLS.map((skill) => {
-              const currentValue = ratings[skill] ?? 5;
+              const currentValue = ratings[skill] ?? 50;
 
               return (
                 <div key={skill} className="space-y-2">
@@ -81,13 +80,13 @@ export function EditSkillsModal({
                     <label htmlFor={`skill-${skill}`} className="font-semibold">
                       {skill}
                     </label>
-                    <span className="font-bold text-[var(--brand)]">{currentValue} / 10</span>
+                    <span className="font-bold text-[var(--brand)]">{currentValue} / 100</span>
                   </div>
                   <input
                     id={`skill-${skill}`}
                     type="range"
-                    min="1"
-                    max="10"
+                    min="0"
+                    max="100"
                     step="1"
                     value={currentValue}
                     onChange={(e) => handleSliderChange(skill, Number(e.target.value))}
@@ -97,7 +96,6 @@ export function EditSkillsModal({
               );
             })}
           </div>
-
 
           <div className="flex items-center justify-end gap-3 border-t pt-4">
             <button
