@@ -8,6 +8,7 @@ import { requireInternPage } from "@/server/assignments/page-auth";
 import { getCurrentInternshipForIntern } from "@/server/assignments/service";
 import { listAchievements } from "@/server/achievements/service";
 import { getInternshipTimeline } from "@/server/timeline/service";
+import { SkillMatrix } from "@/features/skills/SkillMatrix";
 
 export default async function InternPage() {
   const context = await requireInternPage();
@@ -42,6 +43,9 @@ export default async function InternPage() {
               is read-only.
             </p>
           ) : null}
+
+          <SkillMatrix internshipId={internship.id} isMentor={false} />
+
           {internship.progressHub ? (
             <ProgressHub internshipId={internship.id} hub={internship.progressHub} />
           ) : null}

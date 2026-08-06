@@ -15,6 +15,7 @@ import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { Menu } from "@/components/ui/Menu";
 import { requireManagerPage } from "@/server/assignments/page-auth";
 import { getManagerPortfolioDetail } from "@/server/manager-portfolio/service";
+import { SkillMatrix } from "@/features/skills/SkillMatrix";
 
 function dateLabel(value: string | undefined) {
   return value ? new Date(value).toLocaleDateString() : "Ongoing";
@@ -75,6 +76,9 @@ export default async function AssignmentDetailPage({
         </p>
       </div>
       <InternshipLifecycle {...detail.internship} internshipId={internshipId} />
+
+      <SkillMatrix internshipId={internshipId} isMentor={false} />
+
       <section className="rounded-2xl border bg-card p-5 shadow-sm">
         <h2 className="text-lg font-semibold">Internship status</h2>
         <p className="mt-1 text-sm text-muted-foreground">
