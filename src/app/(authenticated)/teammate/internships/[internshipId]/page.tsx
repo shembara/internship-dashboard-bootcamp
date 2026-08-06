@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { FileText } from "lucide-react";
 
 export default async function TeammateInternshipPage({
   params,
