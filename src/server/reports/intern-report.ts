@@ -12,6 +12,7 @@ import {
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/repository";
+import { deriveAttentionSignals } from "@/server/manager-portfolio/service";
 import { getManagerProgressHub, getMentorProgressHub } from "@/server/progress-hub/service";
 import { getStageChecklist } from "@/server/stage-checklists/service";
 import { getInternshipTimeline } from "@/server/timeline/service";
@@ -72,9 +73,17 @@ export async function getInternReportData(internshipId: string, userId: string) 
 
   const internship = parseInternshipDocument(internshipSnap.data());
 
-  const [placementsSnap, teammateAssignmentsSnap, achievements] = await Promise.all([
+  const [
+    placementsSnap,
+    teammateAssignmentsSnap,
+    managerAssignmentsSnap,
+    statusHistorySnap,
+    achievements,
+  ] = await Promise.all([
     ref.collection("teamPlacements").orderBy("startsAt", "desc").get(),
     ref.collection("teammateAssignments").orderBy("startsAt", "desc").get(),
+    ref.collection("managerAssignments").get(),
+    ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
     listAchievements(internshipId, userId, true),
   ]);
 
@@ -88,9 +97,25 @@ export async function getInternReportData(internshipId: string, userId: string) 
     ...teammateAssignmentDocumentSchema.parse(doc.data()),
   }));
 
+  const managerAssignments = managerAssignmentsSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...managerAssignmentDocumentSchema.parse(doc.data()),
+  }));
+
+  const statusHistory = statusHistorySnap.docs.map((doc) => ({
+    id: doc.id,
+    previousStatus: doc.data().previousStatus as string,
+    newStatus: doc.data().newStatus as string,
+    changedAt: doc.data().changedAt?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+    changedBy: doc.data().changedBy as string,
+    reason: doc.data().reason as string | undefined,
+  }));
+
   const allUserIds = new Set<string>([
     internship.internId,
     ...teammateAssignments.map((t) => t.teammateUserId),
+    ...managerAssignments.map((m) => m.userId),
+    ...statusHistory.map((s) => s.changedBy),
   ]);
 
   const teamIds = [
@@ -121,36 +146,74 @@ export async function getInternReportData(internshipId: string, userId: string) 
 
   const internUser = usersMap.get(internship.internId);
 
+  const portfolioBase = {
+    id: ref.id,
+    intern: {
+      id: internship.internId,
+      displayName: internUser?.displayName ?? "Unknown intern",
+      email: internUser?.email ?? "",
+    },
+    status: internship.status,
+    currentStage: internship.currentStage,
+    startsAt: internship.startsAt.toDate().toISOString(),
+    endsAt: internship.endsAt?.toDate().toISOString(),
+    currentStageChecklist: {
+      requiredCompletedCount: checklist.requiredCompletedCount,
+      requiredTotalCount: checklist.requiredTotalCount,
+      readyToComplete: checklist.readyToComplete,
+      isStageCompleted: checklist.isStageCompleted,
+    },
+    mentorNames: currentMentors.flatMap((m) => {
+      const u = usersMap.get(m.teammateUserId);
+      return u ? [u.displayName] : [];
+    }),
+    mentorUserIds: currentMentors.map((m) => m.teammateUserId),
+    currentPlacement: currentPlacement
+      ? {
+        teamId: currentPlacement.teamId,
+        teamTitle: teamsMap.get(currentPlacement.teamId) ?? "Unknown Team",
+      }
+      : undefined,
+    reflectionState: progressHub.summary.reflectionState,
+    mentorCheckInState: progressHub.summary.mentorCheckInState,
+    openActionItems: progressHub.summary.openActionItems,
+    overdueActionItems: progressHub.summary.overdueActionItems,
+    nextDueAction: progressHub.summary.nextDueAction,
+    unresolvedAgendaItems: progressHub.summary.unresolvedAgendaItems,
+  };
+
+  const attentionSignals = deriveAttentionSignals(portfolioBase);
+
   return {
     internship: {
-      id: ref.id,
-      intern: {
-        id: internship.internId,
-        displayName: internUser?.displayName ?? "Unknown intern",
-        email: internUser?.email ?? "",
-      },
-      status: internship.status,
-      currentStage: internship.currentStage,
-      startsAt: internship.startsAt.toDate().toISOString(),
-      endsAt: internship.endsAt?.toDate().toISOString(),
-      currentStageChecklist: {
-        requiredCompletedCount: checklist.requiredCompletedCount,
-        requiredTotalCount: checklist.requiredTotalCount,
-        readyToComplete: checklist.readyToComplete,
-        isStageCompleted: checklist.isStageCompleted,
-      },
-      mentorNames: currentMentors.flatMap((m) => {
-        const u = usersMap.get(m.teammateUserId);
-        return u ? [u.displayName] : [];
-      }),
-      currentPlacement: currentPlacement
-        ? {
-          teamId: currentPlacement.teamId,
-          teamTitle: teamsMap.get(currentPlacement.teamId) ?? "Unknown Team",
-        }
-        : undefined,
+      ...portfolioBase,
+      checklist,
       progressHub,
+      attentionSignals,
     },
+    placements: placements.map((p) => ({
+      ...p,
+      teamTitle: teamsMap.get(p.teamId) ?? "Unknown Team",
+      startsAt: p.startsAt.toDate().toISOString(),
+      endsAt: p.endsAt?.toDate().toISOString(),
+    })),
+    teammateAssignments: teammateAssignments.map((t) => ({
+      ...t,
+      teammateName: usersMap.get(t.teammateUserId)?.displayName ?? "Unknown teammate",
+      teamTitle: teamsMap.get(t.teamId) ?? "Unknown Team",
+      startsAt: t.startsAt.toDate().toISOString(),
+      endsAt: t.endsAt?.toDate().toISOString(),
+    })),
+    managerAssignments: managerAssignments.map((m) => ({
+      ...m,
+      displayName: usersMap.get(m.userId)?.displayName ?? "Unknown manager",
+      startsAt: m.startsAt?.toDate().toISOString(),
+      endsAt: m.endsAt?.toDate().toISOString(),
+    })),
+    statusHistory: statusHistory.map((s) => ({
+      ...s,
+      changedByName: usersMap.get(s.changedBy)?.displayName ?? s.changedBy,
+    })),
     achievements: achievements.achievements,
     timeline: timeline.events,
     generatedAt: new Date().toISOString(),
