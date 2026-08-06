@@ -14,13 +14,19 @@ export function calculateSkillProgress(
       0,
     );
     return {
-      skill,
-      label,
-      completedPoints,
-      maxPoints,
-      percentage: Math.min(100, Math.max(0, Math.round((completedPoints / maxPoints) * 100))),
-    };
-  });
+    skill,
+    label,
+    completedPoints,
+    maxPoints,
+    totalPoints: maxPoints,
+    percentage:
+      maxPoints > 0
+        ? Math.min(
+            100,
+            Math.max(0, Math.round((completedPoints / maxPoints) * 100)),
+          )
+        : 0,
+  };
 }
 
 export function exceedsSkillPointTargets(items: readonly SkillPointItem[]) {
