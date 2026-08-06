@@ -599,12 +599,40 @@ function History({ hub }: { hub: ProgressHubDto }) {
   );
 }
 
+function FeedbackCycles() {
+  return (
+    <Section
+      title="Feedback cycles"
+      description="Start and publish feedback cycles for this internship."
+    >
+      <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+        Feedback cycle management will be added here.
+      </div>
+    </Section>
+  );
+}
+
+export type ProgressHubSection =
+  | "weekly-overview"
+  | "my-weekly-reflection"
+  | "mentor-weekly-check-in"
+  | "intern-reflections"
+  | "shared-one-on-one-agenda"
+  | "shared-notes"
+  | "my-private-notes"
+  | "mentor-private-notes"
+  | "action-items"
+  | "history"
+  | "feedback-cycles";
+
 export function ProgressHub({
   internshipId,
   hub,
+  visibleSection,
 }: {
   internshipId: string;
   hub: ProgressHubDto;
+  visibleSection?: ProgressHubSection;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState<string>();
@@ -656,92 +684,174 @@ export function ProgressHub({
   }
 
   const weekKey = hub.currentWeek.key;
+
+  const sections: Array<{
+    id: ProgressHubSection;
+    node: React.ReactNode;
+  }> = [
+    {
+      id: "weekly-overview",
+      node: <Summary hub={hub} />,
+    },
+    ...(hub.viewer === "intern"
+      ? [
+          {
+            id: "my-weekly-reflection" as const,
+            node: (
+              <ReflectionForm
+                reflection={hub.reflection}
+                disabled={pendingMutation || !hub.capabilities.canSaveReflection}
+                onSave={(state, values) =>
+                  mutate(
+                    "reflection",
+                    { weekKey, state, ...values },
+                    `reflection-${state}`,
+                  )
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(hub.viewer === "mentor"
+      ? [
+          {
+            id: "mentor-weekly-check-in" as const,
+            node: (
+              <CheckInForm
+                checkIn={hub.checkIn}
+                disabled={pendingMutation || !hub.capabilities.canSaveCheckIn}
+                onSave={(state, values) =>
+                  mutate("check-in", { weekKey, state, ...values }, `check-in-${state}`)
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(hub.viewer !== "intern"
+      ? [
+          {
+            id: "intern-reflections" as const,
+            node: <SubmittedReflections reflections={hub.reflections} />,
+          },
+        ]
+      : []),
+    {
+      id: "shared-one-on-one-agenda",
+      node: (
+        <Agenda
+          hub={hub}
+          disabled={pendingMutation}
+          onSave={(body) => mutate("agenda", body, "agenda")}
+        />
+      ),
+    },
+    {
+      id: "shared-notes",
+      node: (
+        <Notes
+          title="Shared notes"
+          description="Visible to the intern, current mentors, and assigned managers."
+          notes={hub.sharedNotes}
+          canCreate={hub.capabilities.canCreateSharedNote}
+          disabled={pendingMutation}
+          onSave={(text) => mutate("notes/shared", { weekKey, text }, "shared-note")}
+        />
+      ),
+    },
+    ...(hub.viewer === "intern"
+      ? [
+          {
+            id: "my-private-notes" as const,
+            node: (
+              <Notes
+                title="My private notes"
+                description="Visible only to you."
+                notes={hub.privateInternNotes}
+                canCreate={hub.capabilities.canCreatePrivateInternNote}
+                disabled={pendingMutation}
+                onSave={(text) =>
+                  mutate("notes/private-intern", { weekKey, text }, "private-intern-note")
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(hub.viewer !== "intern"
+      ? [
+          {
+            id: "mentor-private-notes" as const,
+            node: (
+              <Notes
+                title="Mentor-private notes"
+                description="Visible to authorized mentors and assigned managers, never to the intern."
+                notes={hub.privateMentorNotes}
+                canCreate={hub.capabilities.canCreatePrivateMentorNote}
+                disabled={pendingMutation}
+                onSave={(text) =>
+                  mutate("notes/private-mentor", { weekKey, text }, "private-mentor-note")
+                }
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      id: "action-items",
+      node: (
+        <ActionItems
+          hub={hub}
+          disabled={pendingMutation}
+          onSave={(body) => mutate("action-items", body, "action-item")}
+          onToggle={(item) =>
+            mutate(
+              "action-items",
+              { id: item.id, completed: item.status !== "completed" },
+              `action-${item.id}`,
+              "PATCH",
+            )
+          }
+        />
+      ),
+    },
+    {
+      id: "history",
+      node: <History hub={hub} />,
+    },
+    {
+      id: "feedback-cycles",
+      node: <FeedbackCycles />,
+    },
+  ];
+
+  const visibleSections = visibleSection
+    ? sections.filter((section) => section.id === visibleSection)
+    : sections;
+
   return (
     <section className="space-y-6" aria-labelledby="progress-hub-heading">
-      <div>
-        <p className="text-sm font-medium text-[var(--brand-strong)]">
-          Intern Progress Hub
-        </p>
-        <h1
-          id="progress-hub-heading"
-          className="mt-1 text-2xl font-semibold tracking-tight"
-        >
-          Weekly progress and 1:1 workspace
-        </h1>
-      </div>
-      <Summary hub={hub} />
-      {hub.viewer === "intern" ? (
-        <ReflectionForm
-          reflection={hub.reflection}
-          disabled={pendingMutation || !hub.capabilities.canSaveReflection}
-          onSave={(state, values) =>
-            mutate("reflection", { weekKey, state, ...values }, `reflection-${state}`)
-          }
-        />
-      ) : null}
-      {hub.viewer === "mentor" ? (
-        <CheckInForm
-          checkIn={hub.checkIn}
-          disabled={pendingMutation || !hub.capabilities.canSaveCheckIn}
-          onSave={(state, values) =>
-            mutate("check-in", { weekKey, state, ...values }, `check-in-${state}`)
-          }
-        />
-      ) : null}
-      {hub.viewer !== "intern" ? (
-        <SubmittedReflections reflections={hub.reflections} />
-      ) : null}
-      <Agenda
-        hub={hub}
-        disabled={pendingMutation}
-        onSave={(body) => mutate("agenda", body, "agenda")}
-      />
-      <Notes
-        title="Shared notes"
-        description="Visible to the intern, current mentors, and assigned managers."
-        notes={hub.sharedNotes}
-        canCreate={hub.capabilities.canCreateSharedNote}
-        disabled={pendingMutation}
-        onSave={(text) => mutate("notes/shared", { weekKey, text }, "shared-note")}
-      />
-      {hub.viewer === "intern" ? (
-        <Notes
-          title="My private notes"
-          description="Visible only to you."
-          notes={hub.privateInternNotes}
-          canCreate={hub.capabilities.canCreatePrivateInternNote}
-          disabled={pendingMutation}
-          onSave={(text) =>
-            mutate("notes/private-intern", { weekKey, text }, "private-intern-note")
-          }
-        />
-      ) : null}
-      {hub.viewer !== "intern" ? (
-        <Notes
-          title="Mentor-private notes"
-          description="Visible to authorized mentors and assigned managers, never to the intern."
-          notes={hub.privateMentorNotes}
-          canCreate={hub.capabilities.canCreatePrivateMentorNote}
-          disabled={pendingMutation}
-          onSave={(text) =>
-            mutate("notes/private-mentor", { weekKey, text }, "private-mentor-note")
-          }
-        />
-      ) : null}
-      <ActionItems
-        hub={hub}
-        disabled={pendingMutation}
-        onSave={(body) => mutate("action-items", body, "action-item")}
-        onToggle={(item) =>
-          mutate(
-            "action-items",
-            { id: item.id, completed: item.status !== "completed" },
-            `action-${item.id}`,
-            "PATCH",
-          )
-        }
-      />
-      <History hub={hub} />
+      {visibleSection ? null : (
+        <div>
+          <p className="text-sm font-medium text-[var(--brand-strong)]">
+            Intern Progress Hub
+          </p>
+          <h1
+            id="progress-hub-heading"
+            className="mt-1 text-2xl font-semibold tracking-tight"
+          >
+            Weekly progress and 1:1 workspace
+          </h1>
+        </div>
+      )}
+
+      {visibleSections.map((section) => (
+        <div key={section.id} id={section.id} className="scroll-mt-24">
+          {section.node}
+        </div>
+      ))}
+
       {error ? (
         <p role="alert" className="text-sm text-destructive">
           {error}

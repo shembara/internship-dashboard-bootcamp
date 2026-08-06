@@ -1,4 +1,5 @@
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { Menu } from "@/components/ui/Menu";
 import { InternshipLifecycle } from "@/features/internships/InternshipLifecycle";
 import { ProgressHub } from "@/features/progress-hub/ProgressHub";
 import { Achievements } from "@/features/achievements/Achievements";
@@ -18,6 +19,10 @@ export default async function InternPage() {
     internship && achievements
       ? await getInternshipTimeline(internship.id, achievements)
       : undefined;
+  const workspaceMenu = [
+    { href: "#feedback", label: "Feedback" },
+    { href: "#one-on-one-preparation", label: "1:1 Preparation" },
+  ];
 
   return (
     <section className="space-y-7">
@@ -44,29 +49,36 @@ export default async function InternPage() {
             <Achievements internshipId={internship.id} data={achievements} />
           ) : null}
           {timeline ? <InternshipTimeline timeline={timeline} /> : null}
-          <div className="space-y-10">
-            <section id="feedback" className="scroll-mt-24 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">Feedback</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Review feedback that has been published for your internship.
-                </p>
-              </div>
-              <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-                Published feedback will appear here.
-              </div>
-            </section>
-            <section id="one-on-one-preparation" className="scroll-mt-24 space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">1:1 Preparation</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Prepare discussion points for your upcoming one-to-one meetings.
-                </p>
-              </div>
-              <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
-                One-to-one preparation will be added here.
-              </div>
-            </section>
+          <div className="grid gap-6 md:grid-cols-[180px_minmax(0,1fr)]">
+            <Menu
+              items={workspaceMenu}
+              label="Intern dashboard navigation"
+              className="md:flex-col md:overflow-visible"
+            />
+            <div className="space-y-10">
+              <section id="feedback" className="scroll-mt-24 space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">Feedback</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Review feedback that has been published for your internship.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                  Published feedback will appear here.
+                </div>
+              </section>
+              <section id="one-on-one-preparation" className="scroll-mt-24 space-y-4">
+                <div>
+                  <h2 className="text-lg font-semibold">1:1 Preparation</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Prepare discussion points for your upcoming one-to-one meetings.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+                  One-to-one preparation will be added here.
+                </div>
+              </section>
+            </div>
           </div>
         </div>
       ) : (

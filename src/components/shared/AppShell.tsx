@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { AuthorizationContext } from "@/server/authorization/context";
 
+import { AppShellBody } from "@/components/shared/AppShellBody";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 
 export function AppShell({
@@ -14,6 +15,9 @@ export function AppShell({
     context.access === "appUser"
       ? context.appUser.displayName
       : (context.user.displayName ?? context.user.email);
+
+  const roles = context.access === "appUser" ? context.appUser.roles : [];
+
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur-xl">
@@ -40,13 +44,12 @@ export function AppShell({
                   : "Not invited"}
             </p>
           </div>
+
           <SignOutButton />
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 md:py-10">
-        <main>{children}</main>
-      </div>
+      <AppShellBody roles={roles}>{children}</AppShellBody>
     </div>
   );
 }
