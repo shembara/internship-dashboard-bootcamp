@@ -6,8 +6,9 @@ import { LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { getFirebaseClientAuth } from "@/lib/firebase/client";
+import { cn } from "@/lib/utils";
 
-export function SignOutButton() {
+export function SignOutButton({ tone = "default" }: { tone?: "default" | "dark" }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -34,6 +35,10 @@ export function SignOutButton() {
     <div>
       <Button
         aria-label="Sign out"
+        className={cn(
+          tone === "dark" &&
+            "text-[#c9d1d9] hover:bg-white/5 hover:text-white",
+        )}
         disabled={pending}
         onClick={handleSignOut}
         size="sm"
