@@ -272,8 +272,12 @@ async function buildPortfolioItem(
     internshipRef.collection("teamPlacements").get(),
     internshipRef.collection("teammateAssignments").get(),
   ]);
-  if (!internSnapshot.exists) throw new Error("Intern application user not found.");
-  const intern = appUserSchema.parse(internSnapshot.data());
+
+  // Safe fallback if user record is missing in Firestore
+  const intern = internSnapshot.exists
+    ? appUserSchema.parse(internSnapshot.data())
+    : { displayName: "Unknown Intern", email: "unknown@example.com" };
+
   const assignmentData = teammateAssignments.docs.map((document) => ({
     id: document.id,
     ...teammateAssignmentSchema.parse(document.data()),
@@ -455,8 +459,13 @@ export async function getManagerPortfolioDetail(
     ...managerData.map((assignment) => assignment.userId),
     ...teammateData.map((assignment) => assignment.teammateUserId),
   ]);
-  const intern = users.get(internship.internId);
-  if (!intern) throw new Error("Intern application user not found.");
+
+  // Safe fallback for detail view if intern user missing
+  const intern = users.get(internship.internId) ?? {
+    displayName: "Unknown Intern",
+    email: "unknown@example.com",
+  };
+
   const teamIds = [
     ...new Set([
       ...placementData.map((placement) => placement.teamId),
