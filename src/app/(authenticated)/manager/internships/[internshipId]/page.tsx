@@ -12,9 +12,11 @@ import { InternshipTimeline } from "@/features/timeline/InternshipTimeline";
 import { listAchievements } from "@/server/achievements/service";
 import { getInternshipTimeline } from "@/server/timeline/service";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
+import { Button } from "@/components/ui/Button";
 import { Menu } from "@/components/ui/Menu";
 import { requireManagerPage } from "@/server/assignments/page-auth";
 import { getManagerPortfolioDetail } from "@/server/manager-portfolio/service";
+import { FileText } from "lucide-react";
 
 function dateLabel(value: string | undefined) {
   return value ? new Date(value).toLocaleDateString() : "Ongoing";
@@ -56,23 +58,37 @@ export default async function AssignmentDetailPage({
 
   return (
     <section className="space-y-7">
-      <div className="space-y-2">
-        <Breadcrumbs
-          items={[
-            { label: "Internships", href: "/manager/internships" },
-            { label: detail.internship.intern.displayName },
-          ]}
-        />
-        <p className="text-sm font-medium text-[var(--brand-strong)]">
-          Manager workspace
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {detail.internship.intern.displayName}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {dateLabel(detail.internship.startsAt)} to{" "}
-          {dateLabel(detail.internship.endsAt)}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Breadcrumbs
+            items={[
+              { label: "Internships", href: "/manager/internships" },
+              { label: detail.internship.intern.displayName },
+            ]}
+          />
+          <p className="text-sm font-medium text-[var(--brand-strong)]">
+            Manager workspace
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {detail.internship.intern.displayName}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {dateLabel(detail.internship.startsAt)} to{" "}
+            {dateLabel(detail.internship.endsAt)}
+          </p>
+        </div>
+        <Button
+          nativeButton={false}
+          render={
+            <a
+              href={`/api/manager/internships/${internshipId}/report`}
+              download
+            />
+          }
+          variant="outline"
+        >
+          <FileText className="size-4" /> Export PDF Report
+        </Button>
       </div>
       <InternshipLifecycle {...detail.internship} internshipId={internshipId} />
       <section className="rounded-2xl border bg-card p-5 shadow-sm">
