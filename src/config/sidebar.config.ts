@@ -133,7 +133,7 @@ export const mentorSidebarConfig: RoleSidebarConfig = {
   label: "Mentor workspace",
   general: [
     {
-      label: "Teammate workspace",
+      label: "Mentor workspace",
       icon: Handshake,
       items: [
         { label: "Internships", href: "/teammate", icon: BookOpenCheck },
