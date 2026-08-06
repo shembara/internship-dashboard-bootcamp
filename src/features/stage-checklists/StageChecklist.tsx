@@ -19,10 +19,12 @@ const columns = [
 function TaskCard({
   item,
   onStatusChange,
+  onDelete,
   pending,
 }: {
   item: StageChecklistItemDto;
   onStatusChange: (status: StageChecklistItemDto["status"]) => void;
+  onDelete: () => void;
   pending: boolean;
 }) {
   const nextStatus =
@@ -31,14 +33,21 @@ function TaskCard({
       : item.status === "inProgress"
         ? "done"
         : "todo";
-  const buttonLabel =
+  const actionLabel =
     item.status === "todo"
       ? "Start"
       : item.status === "inProgress"
         ? "Mark done"
         : "Reopen";
   return (
-    <article className="rounded-xl border bg-card p-3 shadow-sm">
+    <article
+      draggable={item.canComplete && !pending}
+      className="cursor-grab rounded-xl border bg-card p-3 shadow-sm active:cursor-grabbing"
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", item.key);
+      }}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{item.label}</p>
         <span
@@ -52,18 +61,69 @@ function TaskCard({
         </span>
       </div>
       {item.canComplete ? (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            Drag to another column or use the button.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={() => onStatusChange(nextStatus)}
+          >
+            {pending ? "Saving…" : actionLabel}
+          </Button>
+        </div>
+      ) : null}
+      {item.canDelete ? (
         <Button
           type="button"
           size="sm"
           variant="outline"
-          className="mt-3 w-full"
+          className="mt-3"
           disabled={pending}
-          onClick={() => onStatusChange(nextStatus)}
+          onClick={onDelete}
         >
-          {pending ? "Saving…" : buttonLabel}
+          {pending ? "Deleting…" : "Delete task"}
         </Button>
       ) : null}
     </article>
+  );
+}
+
+function RequestChangesForm({
+  onSubmit,
+  pending,
+  close,
+}: {
+  onSubmit: (comment: string) => Promise<boolean>;
+  pending: boolean;
+  close: () => void;
+}) {
+  const [comment, setComment] = useState("");
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (await onSubmit(comment)) close();
+      }}
+    >
+      <label className="block space-y-1.5 text-sm font-medium">
+        Requested changes
+        <textarea
+          className="min-h-28 w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+          required
+          maxLength={1000}
+        />
+      </label>
+      <Button type="submit" disabled={pending || !comment.trim()}>
+        {pending ? "Sending…" : "Request changes"}
+      </Button>
+    </form>
   );
 }
 
@@ -126,6 +186,12 @@ export function StageChecklist({
   const [error, setError] = useState("");
   const renderedChecklist = useRef(checklist);
   const isPending = Boolean(pending);
+  const requiredProgress =
+    checklist.requiredTotalCount === 0
+      ? 0
+      : Math.round(
+          (checklist.requiredCompletedCount / checklist.requiredTotalCount) * 100,
+        );
 
   useEffect(() => {
     if (renderedChecklist.current !== checklist) {
@@ -134,13 +200,18 @@ export function StageChecklist({
     }
   }, [checklist]);
 
-  async function mutate(url: string, body: object, key: string) {
+  async function mutate(
+    url: string,
+    body: object,
+    key: string,
+    method: "POST" | "PATCH" | "DELETE" = "PATCH",
+  ) {
     if (pending) return false;
     setPending(key);
     setError("");
     try {
       const response = await fetch(url, {
-        method: key === "stage" || key === "add" ? "POST" : "PATCH",
+        method,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -174,6 +245,13 @@ export function StageChecklist({
             {checklist.requiredCompletedCount} of {checklist.requiredTotalCount}{" "}
             required tasks done
           </p>
+          <p className="mt-1 text-sm font-medium text-[var(--brand-strong)]">
+            {checklist.reviewStatus === "underReview"
+              ? "Under mentor review"
+              : checklist.reviewStatus === "completed"
+                ? "Completed"
+                : "Active"}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {checklist.canAddTasks ? (
@@ -195,11 +273,42 @@ export function StageChecklist({
                       `/api/internships/${internshipId}/stage-checklist/tasks`,
                       { stage: checklist.stage, label, type },
                       "add",
+                      "POST",
                     )
                   }
                 />
               )}
             </Modal>
+          ) : null}
+          {checklist.canCompleteStage ? (
+            <div className="flex gap-2">
+              <Modal
+                trigger={
+                  <Button type="button" variant="outline">
+                    Request changes
+                  </Button>
+                }
+                title="Request changes"
+                description="Explain what the intern needs to change."
+              >
+                {(close) => (
+                  <RequestChangesForm
+                    close={close}
+                    pending={isPending}
+                    onSubmit={(comment) =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/items/review`,
+                        {
+                          stage: checklist.stage,
+                          comment,
+                        },
+                        "request-changes",
+                      )
+                    }
+                  />
+                )}
+              </Modal>
+            </div>
           ) : null}
           {checklist.canCompleteStage ? (
             <Button
@@ -210,6 +319,7 @@ export function StageChecklist({
                   `/api/internships/${internshipId}/stage-checklist/complete`,
                   { stage: checklist.stage },
                   "stage",
+                  "POST",
                 )
               }
             >
@@ -218,9 +328,29 @@ export function StageChecklist({
           ) : null}
         </div>
       </div>
-      {!checklist.readyToComplete && checklist.canCompleteStage ? (
+      <div
+        className="h-3 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label="Required task progress"
+        aria-valuemin={0}
+        aria-valuemax={checklist.requiredTotalCount}
+        aria-valuenow={checklist.requiredCompletedCount}
+        aria-valuetext={`${checklist.requiredCompletedCount} of ${checklist.requiredTotalCount} required tasks done`}
+      >
+        <div
+          className="h-full rounded-full bg-[var(--brand)] transition-[width]"
+          style={{ width: `${requiredProgress}%` }}
+        />
+      </div>
+      {checklist.reviewStatus === "active" && checklist.canCompleteStage ? (
         <p className="text-sm text-muted-foreground">
-          All required tasks must be in Done before the next stage can be approved.
+          Move every Required task to Done to send this stage to mentor review.
+        </p>
+      ) : null}
+      {checklist.latestReviewRequest ? (
+        <p className="rounded-lg border border-[var(--brand-soft)] bg-[var(--brand-soft)]/35 p-3 text-sm">
+          <span className="font-medium">Latest mentor feedback:</span>{" "}
+          {checklist.latestReviewRequest}
         </p>
       ) : null}
       <div className="grid gap-4 md:grid-cols-3">
@@ -231,6 +361,21 @@ export function StageChecklist({
               key={column.status}
               className="min-h-48 rounded-xl border bg-muted/30 p-3"
               aria-label={column.title}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => {
+                event.preventDefault();
+                const itemKey = event.dataTransfer.getData("text/plain");
+                const item = checklist.items.find(
+                  (candidate) => candidate.key === itemKey,
+                );
+                if (item && item.status !== column.status && item.canComplete) {
+                  mutate(
+                    `/api/internships/${internshipId}/stage-checklist/items`,
+                    { stage: checklist.stage, itemKey, status: column.status },
+                    itemKey,
+                  );
+                }
+              }}
             >
               <h3 className="mb-3 font-semibold">
                 {column.title}{" "}
@@ -243,7 +388,15 @@ export function StageChecklist({
                   <TaskCard
                     key={item.key}
                     item={item}
-                    pending={pending === item.key}
+                    pending={pending === item.key || pending === `delete-${item.key}`}
+                    onDelete={() =>
+                      mutate(
+                        `/api/internships/${internshipId}/stage-checklist/tasks`,
+                        { stage: checklist.stage, itemKey: item.key },
+                        `delete-${item.key}`,
+                        "DELETE",
+                      )
+                    }
                     onStatusChange={(status) =>
                       mutate(
                         `/api/internships/${internshipId}/stage-checklist/items`,

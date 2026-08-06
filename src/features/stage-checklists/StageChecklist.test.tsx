@@ -25,6 +25,7 @@ function checklist(): StageChecklistDto {
       status: "todo" as const,
       completed: false,
       canComplete: true,
+      canDelete: false,
     },
     {
       key: "notes",
@@ -33,6 +34,7 @@ function checklist(): StageChecklistDto {
       status: "inProgress" as const,
       completed: false,
       canComplete: true,
+      canDelete: true,
     },
     {
       key: "tools",
@@ -41,6 +43,7 @@ function checklist(): StageChecklistDto {
       status: "done" as const,
       completed: true,
       canComplete: true,
+      canDelete: false,
     },
   ];
   return {
@@ -55,6 +58,8 @@ function checklist(): StageChecklistDto {
     isStageCompleted: false,
     canCompleteStage: true,
     canAddTasks: true,
+    reviewStatus: "underReview",
+    canViewAllStages: false,
   };
 }
 
@@ -72,7 +77,7 @@ describe("StageChecklist", () => {
     );
   });
 
-  it("sends a status update when a task is started", async () => {
+  it("sends a status update when a task is moved", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
@@ -88,6 +93,37 @@ describe("StageChecklist", () => {
           itemKey: "accounts",
           status: "inProgress",
         }),
+      }),
+    );
+  });
+
+  it("renders the required-task progress bar and mentor review action", () => {
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Required task progress" })
+        .getAttribute("aria-valuenow"),
+    ).toBe("1");
+    expect(screen.getByText("Under mentor review")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Request changes" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Confirm mentor review" }),
+    ).toBeNull();
+  });
+
+  it("deletes a custom task", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
+    );
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Delete task" }));
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks"),
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({ stage: "onboarding", itemKey: "notes" }),
       }),
     );
   });

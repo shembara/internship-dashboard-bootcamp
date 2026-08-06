@@ -10,6 +10,7 @@ export type StageChecklistItemDto = {
   completedAt?: string;
   completedBy?: string;
   canComplete: boolean;
+  canDelete: boolean;
 };
 
 export type StageChecklistDto = {
@@ -25,6 +26,9 @@ export type StageChecklistDto = {
   completedAt?: string;
   canCompleteStage: boolean;
   canAddTasks: boolean;
+  latestReviewRequest?: string;
+  reviewStatus: "active" | "underReview" | "completed";
+  canViewAllStages: boolean;
 };
 
 export type InternshipLifecycleChecklistDto = InternshipLifecycle & {
