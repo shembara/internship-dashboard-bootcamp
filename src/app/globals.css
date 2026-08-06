@@ -153,6 +153,32 @@ a {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* Scoped workspace tokens keep the intern and teammate areas aligned with the
+   established dashboard visual language without affecting public pages. */
+.workspace-dark {
+  color: #f0f6fc;
+  --background: #0d1117;
+  --foreground: #f0f6fc;
+  --card: #161b22;
+  --card-foreground: #f0f6fc;
+  --popover: #161b22;
+  --popover-foreground: #f0f6fc;
+  --primary: #34d399;
+  --primary-foreground: #07120f;
+  --secondary: #21262d;
+  --secondary-foreground: #f0f6fc;
+  --muted: #21262d;
+  --muted-foreground: #8b949e;
+  --accent: #21262d;
+  --accent-foreground: #f0f6fc;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 10%);
+  --ring: #34d399;
+  --brand: #34d399;
+  --brand-strong: #34d399;
+  --brand-soft: rgb(52 211 153 / 12%);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

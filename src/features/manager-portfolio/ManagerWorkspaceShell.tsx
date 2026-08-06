@@ -12,3 +12,5 @@ export function ManagerWorkspaceShell({
 }) {
   return <section className={cn(managerTheme.page, className)}>{children}</section>;
 }
+
+export const WorkspaceShell = ManagerWorkspaceShell;

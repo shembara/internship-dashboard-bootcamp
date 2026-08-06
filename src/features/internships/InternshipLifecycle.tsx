@@ -10,6 +10,10 @@ import {
   type InternshipStage,
 } from "@/lib/internships/types";
 import type { StageChecklistDto } from "@/lib/stage-checklists/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
 import { cn } from "@/lib/utils";
 import { StageChecklist } from "@/features/stage-checklists/StageChecklist";
 
@@ -18,7 +22,13 @@ export function InternshipLifecycle({
   currentStage,
   checklist,
   internshipId,
-}: InternshipLifecycleData & { checklist?: StageChecklistDto; internshipId?: string }) {
+  variant = "default",
+}: InternshipLifecycleData & {
+  checklist?: StageChecklistDto;
+  internshipId?: string;
+  variant?: WorkspaceVariant;
+}) {
+  const styles = workspaceStyles(variant);
   const statusOption = internshipStatuses.find((option) => option.value === status);
   const currentStageIndex = internshipStages.findIndex(
     (stage) => stage.value === currentStage,
@@ -57,25 +67,23 @@ export function InternshipLifecycle({
   return (
     <section
       aria-labelledby="internship-lifecycle-heading"
-      className="rounded-2xl border bg-card p-5 shadow-sm"
+      className={styles.lifecycleCard}
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 id="internship-lifecycle-heading" className="text-lg font-semibold">
+          <h2 id="internship-lifecycle-heading" className={styles.heading}>
             Internship lifecycle
           </h2>
         </div>
         <dl className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <dt className="text-muted-foreground">Status</dt>
+            <dt className={styles.muted}>Status</dt>
             <dd>
-              <span className="inline-flex rounded-full border border-[var(--brand-soft)] bg-[var(--brand-soft)] px-2.5 py-1 font-medium text-[var(--brand-strong)]">
-                {statusOption.label}
-              </span>
+              <span className={styles.statusPill}>{statusOption.label}</span>
             </dd>
           </div>
           <div className="flex items-center gap-2">
-            <dt className="text-muted-foreground">Current stage</dt>
+            <dt className={styles.muted}>Current stage</dt>
             <dd className="font-medium">{internshipStages[currentStageIndex].label}</dd>
           </div>
         </dl>
@@ -104,13 +112,12 @@ export function InternshipLifecycle({
               aria-current={state === "current" ? "step" : undefined}
               className={cn(
                 "flex min-w-0 items-start gap-3 rounded-xl border p-3 text-left",
-                !locked && "cursor-pointer transition-colors hover:bg-muted/60",
+                !locked &&
+                  "cursor-pointer transition-colors hover:border-emerald-500/30",
                 locked && "cursor-not-allowed opacity-65",
-                state === "completed" &&
-                  "border-[var(--brand-soft)] bg-[var(--brand-soft)]/45",
-                state === "current" &&
-                  "border-[var(--brand)] bg-[var(--brand-soft)] shadow-sm",
-                state === "upcoming" && "bg-muted/35",
+                state === "completed" && styles.lifecycleCompleted,
+                state === "current" && styles.lifecycleCurrent,
+                state === "upcoming" && styles.lifecycleUpcoming,
               )}
               onClick={() => !locked && selectStage(stage.value)}
             >
@@ -118,12 +125,9 @@ export function InternshipLifecycle({
                 aria-hidden="true"
                 className={cn(
                   "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border",
-                  state === "completed" &&
-                    "border-[var(--brand)] bg-[var(--brand)] text-white",
-                  state === "current" &&
-                    "border-[var(--brand)] bg-white text-[var(--brand-strong)]",
-                  state === "upcoming" &&
-                    "border-muted-foreground/40 text-muted-foreground",
+                  state === "completed" && styles.lifecycleIconCompleted,
+                  state === "current" && styles.lifecycleIconCurrent,
+                  state === "upcoming" && styles.lifecycleIconUpcoming,
                 )}
               >
                 <StateIcon className="size-3.5" />
@@ -133,7 +137,7 @@ export function InternshipLifecycle({
                   {stage.label}
                   {locked ? <Lock className="size-3.5" aria-label="Locked" /> : null}
                 </h3>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className={cn("mt-1 text-xs", styles.muted)}>
                   {state === "completed"
                     ? "Completed"
                     : state === "current"
@@ -147,7 +151,11 @@ export function InternshipLifecycle({
       </ol>
       {selectedChecklist && internshipId ? (
         <div aria-busy={Boolean(loadingStage)}>
-          <StageChecklist internshipId={internshipId} checklist={selectedChecklist} />
+          <StageChecklist
+            internshipId={internshipId}
+            checklist={selectedChecklist}
+            variant={variant}
+          />
         </div>
       ) : null}
     </section>

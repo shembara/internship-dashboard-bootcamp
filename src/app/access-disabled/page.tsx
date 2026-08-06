@@ -17,11 +17,11 @@ export default async function AccessDisabledPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <section className="w-full max-w-lg rounded-3xl border bg-card p-9 text-center">
-        <ShieldAlert className="mx-auto size-12 text-destructive" />
+    <main className="flex min-h-screen items-center justify-center bg-[#0d1117] p-6 text-white">
+      <section className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#161b22] p-9 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+        <ShieldAlert className="mx-auto size-12 text-red-400" />
         <h1 className="mt-6 text-3xl font-semibold tracking-tight">Account disabled</h1>
-        <p className="mt-3 leading-7 text-muted-foreground">
+        <p className="mt-3 leading-7 text-[#8b949e]">
           Your application-user account is disabled. Contact an administrator if you
           believe this is unexpected.
         </p>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { SignOutButton } from "@/features/auth/SignOutButton";
+import { isDarkWorkspacePath } from "@/lib/workspace/paths";
 import { cn } from "@/lib/utils";
 
 export function AppShellHeader({
@@ -14,10 +15,7 @@ export function AppShellHeader({
   rolesLabel: string;
 }) {
   const pathname = usePathname();
-  const isDark =
-    pathname.startsWith("/guest") ||
-    pathname === "/manager/internships" ||
-    pathname === "/manager/people";
+  const isDark = isDarkWorkspacePath(pathname);
 
   return (
     <header

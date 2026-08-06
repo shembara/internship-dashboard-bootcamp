@@ -11,6 +11,7 @@ import {
   type SidebarGroup,
   type SidebarRole,
 } from "@/config/sidebar.config";
+import { isDarkWorkspacePath } from "@/lib/workspace/paths";
 import { cn } from "@/lib/utils";
 
 type SidebarProps = {
@@ -137,6 +138,7 @@ export function Sidebar({ roles }: SidebarProps) {
 
   const role = getSidebarRoleForPath(pathname, roles);
   const internshipId = getInternshipId(pathname, role);
+  const isDark = isDarkWorkspacePath(pathname);
 
   const groups = useMemo<SidebarGroup[]>(() => {
     if (!role) return [];
@@ -166,7 +168,12 @@ export function Sidebar({ roles }: SidebarProps) {
     <aside className="md:sticky md:top-24 md:self-start">
       <nav
         aria-label={config?.label ?? "Sidebar navigation"}
-        className="flex gap-3 overflow-x-auto rounded-2xl border bg-card p-3 shadow-sm md:max-h-[calc(100vh-7rem)] md:flex-col md:overflow-y-auto"
+        className={cn(
+          "flex gap-3 overflow-x-auto rounded-2xl border p-3 md:max-h-[calc(100vh-7rem)] md:flex-col md:overflow-y-auto",
+          isDark
+            ? "border-white/10 bg-[#161b22] shadow-none"
+            : "border-border bg-card shadow-sm",
+        )}
       >
         {groups.map((group) => {
           const GroupIcon = group.icon;
@@ -193,8 +200,12 @@ export function Sidebar({ roles }: SidebarProps) {
                 className={cn(
                   "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-bold transition-colors cursor-pointer",
                   groupActive
-                    ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                    : "text-foreground hover:bg-muted",
+                    ? isDark
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                    : isDark
+                      ? "text-[#c9d1d9] hover:bg-white/5"
+                      : "text-foreground hover:bg-muted",
                 )}
               >
                 <GroupIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -210,7 +221,12 @@ export function Sidebar({ roles }: SidebarProps) {
 
               {isExpanded ? (
                 <div className="pt-1">
-                  <div className="ml-5 space-y-1 border-l border-border/80 pl-3">
+                  <div
+                    className={cn(
+                      "ml-5 space-y-1 border-l pl-3",
+                      isDark ? "border-white/10" : "border-border/80",
+                    )}
+                  >
                     {group.items.map((item, itemIndex) => {
                       const Icon = item.icon;
                       const href = resolveHref({
@@ -229,14 +245,25 @@ export function Sidebar({ roles }: SidebarProps) {
                           className={cn(
                             "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                             active
-                              ? "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
-                              : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
+                              ? isDark
+                                ? "bg-emerald-500/10 text-emerald-400"
+                                : "bg-[var(--brand-soft)] text-[var(--brand-strong)]"
+                              : isDark
+                                ? "text-[#8b949e] hover:bg-white/5 hover:text-white"
+                                : "text-muted-foreground hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
                           )}
                         >
                           <Icon className="size-4 shrink-0" aria-hidden="true" />
                           <span className="min-w-0 flex-1 truncate">{item.label}</span>
                           {item.badge ? (
-                            <span className="rounded-full bg-[var(--brand)] px-2 py-0.5 text-xs font-semibold text-white">
+                            <span
+                              className={cn(
+                                "rounded-full px-2 py-0.5 text-xs font-semibold",
+                                isDark
+                                  ? "bg-emerald-500 text-black"
+                                  : "bg-[var(--brand)] text-white",
+                              )}
+                            >
                               {item.badge}
                             </span>
                           ) : null}
