@@ -710,33 +710,50 @@ export async function transitionInternshipStatus(
       managerId,
     );
 
-    const guardRef = adminFirestore
-      .collection("internshipGuards")
-      .doc(internship.internId);
-    const [progressSnapshot, guard] = await Promise.all([
-      transaction.get(ref.collection("stageProgress").doc("finalReview")),
-      transaction.get(guardRef),
-    ]);
-    assertOperationalInternship(internship);
-    const nextStatus = transitionTarget(internship.status, command.action);
+    let nextStatus: InternshipStatus;
+    switch (command.action) {
+      case "pause":
+        if (internship.status !== "active") {
+          throw new Error("Only active internships can be paused.");
+        }
+        nextStatus = "paused";
+        break;
+      case "resume":
+        if (internship.status !== "paused") {
+          throw new Error("Only paused internships can be resumed.");
+        }
+        nextStatus = "active";
+        break;
+      case "cancel":
+        if (!isOperationalInternshipStatus(internship.status)) {
+          throw new Error("Completed or cancelled internships cannot be cancelled.");
+        }
+        nextStatus = "cancelled";
+        break;
+      case "complete":
+        if (!isOperationalInternshipStatus(internship.status)) {
+          throw new Error("Completed or cancelled internships cannot be completed.");
+        }
+        nextStatus = "completed";
+        break;
+    }
+
     if (nextStatus === "completed") {
       if (internship.currentStage !== "finalReview") {
         throw new Error("Only Final Review internships can be completed.");
       }
-      if (!progressSnapshot.exists) throw new Error("Final Review is not complete.");
+      const progressSnapshot = await transaction.get(
+        ref.collection("stageProgress").doc("finalReview"),
+      );
+      if (!progressSnapshot.exists) {
+        throw new Error("Final Review is not complete.");
+      }
       const progress = stageProgressSchema.parse(progressSnapshot.data());
-      const template = getStageChecklistTemplate("finalReview");
-      if (
-        progress.stage !== "finalReview" ||
-        !progress.completedAt ||
-        !areRequiredChecklistItemsComplete(
-          [...template.items, ...progress.customItems],
-          progress.items,
-        )
-      ) {
+      if (progress.stage !== "finalReview" || !progress.completedAt) {
         throw new Error("Complete every required Final Review item first.");
       }
     }
+
     const completionDate =
       command.completionDate ?? dateInApplicationTimeZone(Timestamp.now());
     const completedAt = Timestamp.fromDate(new Date(`${completionDate}T00:00:00.000Z`));
@@ -749,40 +766,41 @@ export async function transitionInternshipStatus(
       );
     }
 
-    const updates: Record<string, unknown> = {
+    const guardRef = adminFirestore
+      .collection("internshipGuards")
+      .doc(internship.internId);
+
+    transaction.update(ref, {
       status: nextStatus,
+      ...(nextStatus === "completed" || nextStatus === "cancelled"
+        ? { endsAt: completedAt }
+        : {}),
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: managerId,
-    };
+    });
 
-    if (command.action === "complete" && command.completionDate) {
-      updates.endsAt = Timestamp.fromDate(
-        new Date(`${command.completionDate}T00:00:00.000Z`),
-      );
-    } else if (command.action === "complete" || command.action === "cancel") {
-      updates.endsAt = FieldValue.serverTimestamp();
-    }
-
-    transaction.update(ref, updates);
-
-    const guardRef = adminFirestore.collection("internshipGuards").doc(internship.internId);
     if (nextStatus === "completed" || nextStatus === "cancelled") {
       transaction.delete(guardRef);
     } else {
-      transaction.set(guardRef, {
-        internshipId,
-        status: nextStatus,
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: managerId,
-      });
+      transaction.set(
+        guardRef,
+        {
+          internshipId: ref.id,
+          status: nextStatus,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: managerId,
+        },
+        { merge: true },
+      );
     }
 
-    transaction.create(ref.collection("statusHistory").doc(), {
+    const statusHistoryRef = ref.collection("statusHistory").doc();
+    transaction.create(statusHistoryRef, {
       previousStatus: internship.status,
       newStatus: nextStatus,
       changedAt: FieldValue.serverTimestamp(),
       changedBy: managerId,
-      ...(command.reason ? { reason: command.reason } : {}),
+      ...(command.reason?.trim() ? { reason: command.reason.trim() } : {}),
     });
   });
 }
