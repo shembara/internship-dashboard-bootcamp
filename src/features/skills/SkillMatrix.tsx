@@ -34,7 +34,7 @@ interface SkillMatrixProps {
   isMentor?: boolean;
 }
 
-export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
+export function SkillMatrix({ internshipId, isMentor }: SkillMatrixProps) {
   const [selectedWeek, setSelectedWeek] = useState<string>(CURRENT_WEEK_KEY);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -43,17 +43,23 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
   );
 
   const isCurrentWeek = selectedWeek === CURRENT_WEEK_KEY;
-  const canEdit = isMentor && isCurrentWeek;
+  const canEdit = Boolean(isMentor && isCurrentWeek);
 
-  const previousWeekKey = selectedWeek === "2026-W32" ? "2026-W31" : undefined;
+  const currentRatings: SkillRatings =
+    weeklyRatings[selectedWeek] ?? ({} as SkillRatings);
 
-  //const currentRatings = weeklyRatings[selectedWeek] ?? {};
-  const currentRatings: SkillRatings = weeklyRatings[selectedWeek] ?? ({} as SkillRatings);
+  const getPreviousWeekKey = (weekKey: string) => {
+    const match = weekKey.match(/^(\d{4})-W(\d+)$/);
+    if (!match) return undefined;
+    const year = match[1];
+    const weekNum = parseInt(match[2], 10);
+    return weekNum > 1 ? `${year}-W${String(weekNum - 1).padStart(2, "0")}` : undefined;
+  };
+
+  const previousWeekKey = getPreviousWeekKey(selectedWeek);
   const previousRatings: SkillRatings = previousWeekKey
     ? weeklyRatings[previousWeekKey] ?? ({} as SkillRatings)
     : ({} as SkillRatings);
-
-  //const previousRatings = previousWeekKey ? weeklyRatings[previousWeekKey] ?? {} : {};
 
   const handleSaveRatings = (updatedRatings: SkillRatings) => {
     setWeeklyRatings((prev) => ({
@@ -123,6 +129,7 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
                 </div>
               </div>
 
+              {/* Прогрес бар із прозорою фоновою підкладкою попереднього тижня */}
               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand-soft)] opacity-60 transition-all duration-300"
