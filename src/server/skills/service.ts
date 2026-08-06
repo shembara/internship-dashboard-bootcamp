@@ -10,9 +10,11 @@ import { resolveProgressHubAccess } from "@/server/progress-hub/service";
 import {
   weekKeySchema,
   ratingsSchema,
+} from "@/lib/skills/types";
+import {
   skillRatingsDocumentSchema,
   type SkillRatingsDocument,
-} from "@/lib/skills/types";
+} from "@/server/skills/types";
 
 export const skillRatingsMutationSchema = z.object({
   weekKey: weekKeySchema,

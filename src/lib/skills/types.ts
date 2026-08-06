@@ -1,4 +1,3 @@
-import { Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 
 export const SKILLS = [
@@ -23,16 +22,5 @@ export const ratingsSchema = z.object(
 export type Ratings = z.infer<typeof ratingsSchema>;
 
 export const weekKeySchema = z.string().regex(/^\d{4}-W\d{2}$/);
-
-export const skillRatingsDocumentSchema = z.object({
-  weekKey: weekKeySchema,
-  ratings: ratingsSchema,
-  createdBy: z.string().min(1),
-  createdAt: z.instanceof(Timestamp),
-  updatedBy: z.string().min(1),
-  updatedAt: z.instanceof(Timestamp),
-});
-
-export type SkillRatingsDocument = z.infer<typeof skillRatingsDocumentSchema>;
 
 export type SkillRatings = Record<Skill, number>;
