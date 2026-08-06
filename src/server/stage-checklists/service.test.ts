@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InternshipDocument } from "@/server/internships/domain";
 
-import { resolveChecklistAccess } from "./service";
+import { checklistItemReviewSchema, resolveChecklistAccess } from "./service";
 
 const now = Timestamp.now();
 
@@ -180,5 +180,23 @@ describe("checklist access", () => {
         assignments(),
       ),
     ).toThrow("cannot view this internship");
+  });
+});
+
+describe("stage review requests", () => {
+  it("accepts a required comment without a per-task review action", () => {
+    expect(
+      checklistItemReviewSchema.safeParse({
+        stage: "onboarding",
+        comment: "Please update the setup notes.",
+      }).success,
+    ).toBe(true);
+    expect(
+      checklistItemReviewSchema.safeParse({
+        stage: "onboarding",
+        action: "approve",
+        comment: "Approved",
+      }).success,
+    ).toBe(false);
   });
 });

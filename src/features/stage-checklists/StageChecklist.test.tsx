@@ -26,7 +26,6 @@ function checklist(): StageChecklistDto {
       completed: false,
       canComplete: true,
       canDelete: false,
-      lockedForIntern: false,
     },
     {
       key: "notes",
@@ -36,7 +35,6 @@ function checklist(): StageChecklistDto {
       completed: false,
       canComplete: true,
       canDelete: true,
-      lockedForIntern: false,
     },
     {
       key: "tools",
@@ -46,7 +44,6 @@ function checklist(): StageChecklistDto {
       completed: true,
       canComplete: true,
       canDelete: false,
-      lockedForIntern: false,
     },
   ];
   return {
@@ -61,7 +58,6 @@ function checklist(): StageChecklistDto {
     isStageCompleted: false,
     canCompleteStage: true,
     canAddTasks: true,
-    canReviewDoneTasks: true,
     reviewStatus: "underReview",
     canViewAllStages: false,
   };

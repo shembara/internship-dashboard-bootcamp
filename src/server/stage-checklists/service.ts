@@ -37,21 +37,10 @@ export const checklistItemMutationSchema = z.object({
   status: z.enum(["todo", "inProgress", "done"]),
 });
 
-export const checklistItemReviewSchema = z
-  .object({
-    stage: z.enum(stageValues),
-    action: z.enum(["approve", "requestChanges"]),
-    comment: z.string().trim().min(1).max(1_000).optional(),
-  })
-  .superRefine((input, context) => {
-    if (input.action === "requestChanges" && !input.comment) {
-      context.addIssue({
-        code: "custom",
-        message: "Describe the requested changes.",
-        path: ["comment"],
-      });
-    }
-  });
+export const checklistItemReviewSchema = z.object({
+  stage: z.enum(stageValues),
+  comment: z.string().trim().min(1).max(1_000),
+}).strict();
 
 export const createChecklistItemSchema = z.object({
   stage: z.enum(stageValues),
@@ -77,8 +66,6 @@ const itemProgressSchema = z.object({
   status: z.enum(["todo", "inProgress", "done"]).optional(),
   completedAt: z.instanceof(Timestamp).optional(),
   completedBy: z.string().min(1).optional(),
-  reviewedAt: z.instanceof(Timestamp).optional(),
-  reviewedBy: z.string().min(1).optional(),
 });
 
 const customItemSchema = z.object({
@@ -319,7 +306,6 @@ function stageChecklistDto(
   const items = definitions.map<StageChecklistItemDto>((item) => {
     const itemProgress = progress.items[item.key] ?? { completed: false };
     const status = itemProgress.status ?? (itemProgress.completed ? "done" : "todo");
-    const reviewed = Boolean(itemProgress.reviewedAt);
     return {
       key: item.key,
       label: item.label,
@@ -331,16 +317,12 @@ function stageChecklistDto(
       canComplete:
         isMutable &&
         !isStageCompleted &&
-        !(access.isIntern && reviewed && status === "done") &&
         access.canMoveTasks,
       canDelete:
         isMutable &&
         !isStageCompleted &&
         access.canAddTasks &&
         progress.customItems.some((customItem) => customItem.key === item.key),
-      reviewedAt: itemProgress.reviewedAt?.toDate().toISOString(),
-      reviewedBy: itemProgress.reviewedBy,
-      lockedForIntern: access.isIntern && reviewed && status === "done",
     };
   });
   const requiredItems = items.filter((item) => item.type === "required");
@@ -364,11 +346,6 @@ function stageChecklistDto(
     completedAt: progress.completedAt?.toDate().toISOString(),
     canCompleteStage: isMutable && !isStageCompleted && access.canAdvance,
     canAddTasks: isMutable && !isStageCompleted && access.canAddTasks,
-    canReviewDoneTasks:
-      isMutable &&
-      !isStageCompleted &&
-      access.canReviewTasks &&
-      reviewStatus === "underReview",
     latestReviewRequest: progress.reviewRequests.at(-1)?.comment,
     reviewStatus,
     canViewAllStages: access.canViewAllStages,
@@ -475,16 +452,6 @@ export async function updateChecklistItem(
     const items: Record<string, unknown> = {
       ...(progress?.items ?? initialItems(input.stage)),
     };
-    const existingItem = items[input.itemKey] as
-      z.infer<typeof itemProgressSchema> | undefined;
-    const existingStatus =
-      existingItem?.status ?? (existingItem?.completed ? "done" : "todo");
-    if (access.isIntern && existingItem?.reviewedAt && existingStatus === "done") {
-      throw new AuthorizationError(
-        "ROLE_REQUIRED",
-        "A mentor-reviewed task cannot be moved by an intern.",
-      );
-    }
     items[input.itemKey] = {
       completed: input.status === "done",
       status: input.status,
@@ -555,27 +522,18 @@ export async function reviewChecklistItem(
         "A mentor is required to review tasks.",
       );
     }
-    const items: Record<string, unknown> = {
-      ...(progress?.items ?? initialItems(input.stage)),
-    };
-    if (input.action === "approve") throw new Error("Approve the stage instead.");
     transaction.set(
       progressRef,
       {
         ...(progress ?? initialStageProgress(input.stage, userId)),
-        items,
-        ...(input.action === "requestChanges"
-          ? {
-              reviewRequests: [
-                ...(progress?.reviewRequests ?? []),
-                {
-                  comment: input.comment!,
-                  createdAt: FieldValue.serverTimestamp(),
-                  createdBy: userId,
-                },
-              ],
-            }
-          : {}),
+        reviewRequests: [
+          ...(progress?.reviewRequests ?? []),
+          {
+            comment: input.comment,
+            createdAt: FieldValue.serverTimestamp(),
+            createdBy: userId,
+          },
+        ],
         reviewStatus: "active",
         updatedAt: FieldValue.serverTimestamp(),
         updatedBy: userId,

@@ -60,11 +60,6 @@ function TaskCard({
           {item.type === "required" ? "Required" : "Recommended"}
         </span>
       </div>
-      {item.reviewedAt ? (
-        <p className="mt-3 text-xs font-medium text-[var(--brand-strong)]">
-          Mentor reviewed
-        </p>
-      ) : null}
       {item.canComplete ? (
         <div className="mt-3 flex items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
@@ -80,11 +75,6 @@ function TaskCard({
             {pending ? "Saving…" : actionLabel}
           </Button>
         </div>
-      ) : null}
-      {item.lockedForIntern ? (
-        <p className="mt-3 text-xs text-muted-foreground">
-          This mentor-reviewed task is locked.
-        </p>
       ) : null}
       {item.canDelete ? (
         <Button
@@ -310,7 +300,6 @@ export function StageChecklist({
                         `/api/internships/${internshipId}/stage-checklist/items/review`,
                         {
                           stage: checklist.stage,
-                          action: "requestChanges",
                           comment,
                         },
                         "request-changes",

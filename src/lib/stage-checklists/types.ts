@@ -11,9 +11,6 @@ export type StageChecklistItemDto = {
   completedBy?: string;
   canComplete: boolean;
   canDelete: boolean;
-  reviewedAt?: string;
-  reviewedBy?: string;
-  lockedForIntern: boolean;
 };
 
 export type StageChecklistDto = {
@@ -29,7 +26,6 @@ export type StageChecklistDto = {
   completedAt?: string;
   canCompleteStage: boolean;
   canAddTasks: boolean;
-  canReviewDoneTasks: boolean;
   latestReviewRequest?: string;
   reviewStatus: "active" | "underReview" | "completed";
   canViewAllStages: boolean;
