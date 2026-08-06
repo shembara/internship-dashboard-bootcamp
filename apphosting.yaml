@@ -6,9 +6,12 @@ runConfig:
   memoryMiB: 512
 
 env:
-  # Replace this value with the canonical App Hosting URL before deployment.
+  # Must equal whatever domain actually serves this app right now, since
+  # hasValidRequestOrigin() rejects /api/auth/session requests whose Origin
+  # header doesn't match this value. Switch to https://internhub.pp.ua (and
+  # redeploy) once that custom domain is mapped and serving traffic.
   - variable: APP_ORIGIN
-    value: "https://internhub.pp.ua"
+    value: "https://internship-dashboard--internship-dashboard-44240.europe-west4.hosted.app"
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_AUTHENTICATION_MODE
@@ -18,6 +21,42 @@ env:
       - RUNTIME
   - variable: FIREBASE_AUTHENTICATION_MODE
     value: "google"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Required at BUILD time: getServerEnvironment() throws in production if
+  # neither this nor GOOGLE_CLOUD_PROJECT is set, and Next.js evaluates it
+  # while collecting page data during `next build`.
+  - variable: FIREBASE_PROJECT_ID
+    value: "internship-dashboard-44240"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Our Firestore data lives in the "europe" database, not "(default)".
+  - variable: FIRESTORE_DATABASE_ID
+    value: "europe"
+    availability:
+      - RUNTIME
+  # Pinning these (instead of relying on App Hosting's automatic Firebase Web
+  # App config) keeps authDomain equal to our own origin, so the
+  # signInWithRedirect flow never needs third-party storage access on
+  # *.firebaseapp.com (blocked by default in Chrome 115+/Safari 16.1+/Firefox
+  # 109+). next.config.ts proxies /__/auth/* to *.firebaseapp.com so the
+  # Firebase-hosted auth helper still works behind this domain.
+  # NOTE: update authDomain to internhub.pp.ua (and re-register its
+  # /__/auth/handler redirect URI) once the custom domain is mapped.
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyCqBU--NL3jMXuvGl4NUJ7EM4mLV8rzWK4"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "internship-dashboard--internship-dashboard-44240.europe-west4.hosted.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "internship-dashboard-44240"
     availability:
       - BUILD
       - RUNTIME
