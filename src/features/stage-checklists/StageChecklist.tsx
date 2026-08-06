@@ -9,17 +9,67 @@ import type {
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
-import {
-  type WorkspaceVariant,
-  workspaceStyles,
-} from "@/lib/manager-workspace/theme";
+import { skillProgressAreas } from "@/lib/stage-checklists/types";
+import { type WorkspaceVariant, workspaceStyles } from "@/lib/manager-workspace/theme";
 import { cn } from "@/lib/utils";
 
 const columns = [
   { status: "todo", title: "To do", toneKey: "kanbanColumnTodo" as const },
-  { status: "inProgress", title: "In progress", toneKey: "kanbanColumnProgress" as const },
+  {
+    status: "inProgress",
+    title: "In progress",
+    toneKey: "kanbanColumnProgress" as const,
+  },
   { status: "done", title: "Done", toneKey: "kanbanColumnDone" as const },
 ] as const;
+
+function SkillProgress({
+  progress,
+  variant,
+}: {
+  progress: StageChecklistDto["skillProgress"];
+  variant: WorkspaceVariant;
+}) {
+  const styles = workspaceStyles(variant);
+  const visibleProgress = progress.filter((skill) => skill.total > 0);
+
+  if (!visibleProgress.length) return null;
+
+  return (
+    <section className={cn(styles.innerCard, "space-y-3")} aria-label="Skill progress">
+      <h3 className={styles.heading}>Skill progress</h3>
+      <dl className="grid gap-x-8 gap-y-2 sm:grid-cols-2">
+        {visibleProgress.map((skill) => {
+          const label = skillProgressAreas.find(
+            (area) => area.value === skill.area,
+          )!.label;
+          const percent = Math.round((skill.completed / skill.total) * 100);
+          return (
+            <div key={skill.area} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <dt className={styles.muted}>{label}</dt>
+                <dd className="shrink-0 font-medium">
+                  {skill.completed}/{skill.total}
+                </dd>
+              </div>
+              <div
+                className={cn(styles.progressBar, "h-1.5")}
+                role="progressbar"
+                aria-label={`${label} skill progress`}
+                aria-valuemin={0}
+                aria-valuemax={skill.total}
+                aria-valuenow={skill.completed}
+                aria-valuetext={`${skill.completed} of ${skill.total} completed`}
+              >
+                <div className={styles.progressFill} style={{ width: `${percent}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </dl>
+    </section>
+  );
+}
 
 function TaskCard({
   item,
@@ -247,8 +297,7 @@ export function StageChecklist({
       });
       if (!response.ok) {
         const data = (await response.json().catch(() => undefined)) as
-          | { error?: string }
-          | undefined;
+          { error?: string } | undefined;
         throw new Error(data?.error ?? "Could not update the task board.");
       }
       router.refresh();
@@ -391,6 +440,7 @@ export function StageChecklist({
           style={{ width: `${requiredProgress}%` }}
         />
       </div>
+      <SkillProgress progress={checklist.skillProgress} variant={variant} />
       {checklist.reviewStatus === "active" && checklist.canCompleteStage ? (
         <p className={cn("text-sm", styles.muted)}>
           Move every Required task to Done to send this stage to mentor review.
@@ -426,7 +476,12 @@ export function StageChecklist({
                 }
               }}
             >
-              <h3 className={cn("mb-3 font-semibold uppercase tracking-wide", styles[column.toneKey])}>
+              <h3
+                className={cn(
+                  "mb-3 font-semibold uppercase tracking-wide",
+                  styles[column.toneKey],
+                )}
+              >
                 {column.title}{" "}
                 <span className={cn("text-sm font-normal normal-case", styles.muted)}>
                   {items.length}

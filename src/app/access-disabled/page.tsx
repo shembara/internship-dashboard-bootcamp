@@ -17,7 +17,7 @@ export default async function AccessDisabledPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0d1117] p-6 text-white">
+    <main className="workspace-dark dashboard-gradient flex min-h-screen items-center justify-center bg-[#0d1117] p-6 text-white">
       <section className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#161b22] p-9 text-center shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
         <ShieldAlert className="mx-auto size-12 text-red-400" />
         <h1 className="mt-6 text-3xl font-semibold tracking-tight">Account disabled</h1>

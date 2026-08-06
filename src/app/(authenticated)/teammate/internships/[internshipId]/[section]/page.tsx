@@ -77,7 +77,7 @@ export default async function TeammateInternshipSectionPage({
   const styles = workspaceStyles("dark");
 
   return (
-    <section className="space-y-7">
+    <section className="workspace-page space-y-7">
       <div className="space-y-2">
         <Breadcrumbs
           variant="dark"

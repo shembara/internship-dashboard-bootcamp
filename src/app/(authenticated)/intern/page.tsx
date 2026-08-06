@@ -22,7 +22,7 @@ export default async function InternPage() {
   const styles = workspaceStyles("dark");
 
   return (
-    <section className="space-y-7">
+    <section className="workspace-page space-y-7">
       <div className="space-y-2">
         <Breadcrumbs variant="dark" items={[{ label: "Intern dashboard" }]} />
         <p className={styles.eyebrow}>Intern workspace</p>

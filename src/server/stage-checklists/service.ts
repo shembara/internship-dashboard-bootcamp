@@ -4,9 +4,11 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import type {
+  SkillProgressArea,
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
+import { skillProgressAreas } from "@/lib/stage-checklists/types";
 import {
   getStageChecklistTemplate,
   type ChecklistCompletionActor,
@@ -361,6 +363,16 @@ function stageChecklistDto(
   const reviewStatus = isStageCompleted
     ? "completed"
     : (progress.reviewStatus ?? (requiredComplete ? "underReview" : "active"));
+  const skillProgress = skillProgressAreas.map((area) => {
+    const relevantItems = items.filter((item) =>
+      skillAreasForItem(item.key).includes(area.value),
+    );
+    return {
+      area: area.value,
+      completed: relevantItems.filter((item) => item.completed).length,
+      total: relevantItems.length,
+    };
+  });
 
   return {
     stage,
@@ -379,7 +391,84 @@ function stageChecklistDto(
     latestReviewRequest: progress.reviewRequests.at(-1)?.comment,
     reviewStatus,
     canViewAllStages: access.canViewAllStages,
+    skillProgress,
   };
+}
+
+function skillAreasForItem(key: string): SkillProgressArea[] {
+  const areas = new Set<SkillProgressArea>();
+  const includes = (value: string) => key.includes(value);
+
+  if (
+    includes("code") ||
+    includes("technical") ||
+    includes("development") ||
+    includes("implementation") ||
+    includes("repository") ||
+    includes("environment") ||
+    includes("architecture") ||
+    includes("bug") ||
+    includes("production")
+  ) {
+    areas.add("technical");
+  }
+  if (
+    includes("test") ||
+    includes("pull-request") ||
+    includes("review") ||
+    includes("documentation")
+  ) {
+    areas.add("codeQuality");
+  }
+  if (
+    includes("product") ||
+    includes("workflow") ||
+    includes("requirement") ||
+    includes("client")
+  ) {
+    areas.add("productUnderstanding");
+  }
+  if (
+    includes("plan") ||
+    includes("estimate") ||
+    includes("calendar") ||
+    includes("task") ||
+    includes("refinement")
+  ) {
+    areas.add("planning");
+  }
+  if (
+    includes("independent") ||
+    includes("own") ||
+    includes("proposal") ||
+    includes("improvement") ||
+    includes("self-")
+  ) {
+    areas.add("ownership");
+  }
+  if (
+    includes("mentor") ||
+    includes("team") ||
+    includes("feedback") ||
+    includes("discussion") ||
+    includes("meeting") ||
+    includes("slack")
+  ) {
+    areas.add("collaboration");
+  }
+  if (
+    includes("led") ||
+    includes("shared") ||
+    includes("demo") ||
+    includes("decision") ||
+    includes("presentation")
+  ) {
+    areas.add("leadership");
+  }
+  if (!areas.size) areas.add("communication");
+  if (areas.has("collaboration")) areas.add("communication");
+
+  return [...areas];
 }
 
 async function ensureStageProgress(

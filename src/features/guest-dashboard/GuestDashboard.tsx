@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import {
-  Award,
-  BarChart3,
-  Clock3,
-  MessageSquareText,
-  Sun,
-} from "lucide-react";
+import { Award, BarChart3, Clock3, MessageSquareText, Sun } from "lucide-react";
 
 import type { GuestDashboardDto } from "@/lib/guest-dashboard/types";
 import { internshipStages, internshipStatuses } from "@/lib/internships/types";
@@ -55,13 +49,7 @@ function SectionHeading({
   );
 }
 
-function TasksProgress({
-  completed,
-  total,
-}: {
-  completed: number;
-  total: number;
-}) {
+function TasksProgress({ completed, total }: { completed: number; total: number }) {
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   return (
@@ -119,7 +107,7 @@ export function GuestDashboard({
   ] as const;
 
   return (
-    <section className="-mx-5 -mb-5 min-h-[calc(100vh-4rem)] space-y-6 bg-[#0d1117] px-5 pb-5 pt-1 text-white sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
+    <section className="-mx-5 -mb-5 min-h-[calc(100vh-4rem)] space-y-6 bg-transparent px-5 pb-5 pt-1 text-white sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-400">
@@ -191,7 +179,9 @@ export function GuestDashboard({
                     <dt className="text-xs uppercase tracking-[0.08em] text-[#6e7681]">
                       Current stage
                     </dt>
-                    <dd className="mt-1">{label(internshipStages, item.currentStage)}</dd>
+                    <dd className="mt-1">
+                      {label(internshipStages, item.currentStage)}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-xs uppercase tracking-[0.08em] text-[#6e7681]">
@@ -288,16 +278,12 @@ export function GuestDashboard({
                     <SectionHeading icon={Sun}>
                       Intern feeling about internship
                     </SectionHeading>
-                    <p className="mt-2 text-sm text-[#8b949e]">
-                      Not available yet.
-                    </p>
+                    <p className="mt-2 text-sm text-[#8b949e]">Not available yet.</p>
                   </section>
 
                   <section>
                     <SectionHeading icon={BarChart3}>Skill metrics</SectionHeading>
-                    <p className="mt-2 text-sm text-[#8b949e]">
-                      Not available yet.
-                    </p>
+                    <p className="mt-2 text-sm text-[#8b949e]">Not available yet.</p>
                   </section>
 
                   <section className="md:col-span-2">

@@ -60,6 +60,7 @@ function checklist(): StageChecklistDto {
     canAddTasks: true,
     reviewStatus: "underReview",
     canViewAllStages: false,
+    skillProgress: [],
   };
 }
 
@@ -107,9 +108,7 @@ describe("StageChecklist", () => {
     expect(screen.getByText("Under mentor review")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Request changes" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Confirm mentor review" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Confirm mentor review" })).toBeNull();
   });
 
   it("deletes a custom task", async () => {

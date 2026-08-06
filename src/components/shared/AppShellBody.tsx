@@ -17,13 +17,17 @@ export function AppShellBody({
   const pathname = usePathname();
   const showSidebar = shouldShowSidebar(pathname, roles);
   const isDark = isDarkWorkspacePath(pathname);
+  const isInternOrTeammate =
+    pathname.startsWith("/intern") || pathname.startsWith("/teammate");
 
   return (
     <div
       className={cn(
         "grid gap-8 p-5 sm:p-8",
         showSidebar && "md:grid-cols-[240px_minmax(0,1fr)]",
-        isDark && "workspace-dark min-h-[calc(100vh-4rem)] bg-[#0d1117]",
+        isDark &&
+          "workspace-dark dashboard-gradient min-h-[calc(100vh-4rem)] bg-[#0d1117]",
+        isInternOrTeammate && "intern-teammate-workspace",
       )}
     >
       <Sidebar roles={roles} />

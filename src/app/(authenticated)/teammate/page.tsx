@@ -11,7 +11,7 @@ export default async function TeammatePage() {
   const styles = workspaceStyles("dark");
 
   return (
-    <section className="space-y-6">
+    <section className="workspace-page space-y-6">
       <div className="space-y-2">
         <Breadcrumbs variant="dark" items={[{ label: "Internships" }]} />
         <p className={styles.eyebrow}>Teammate workspace</p>
