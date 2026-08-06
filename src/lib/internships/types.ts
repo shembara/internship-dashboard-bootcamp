@@ -10,9 +10,9 @@ export type InternshipStatus = (typeof internshipStatuses)[number]["value"];
 export const internshipStages = [
   { value: "onboarding", label: "Onboarding" },
   { value: "firstJiraTasks", label: "First Jira tasks" },
-  { value: "activeContribution", label: "Active contribution" },
+  { value: "activeContribution", label: "Workflow" },
   { value: "independentWork", label: "Independent work" },
-  { value: "finalReview", label: "Final review" },
+  { value: "finalReview", label: "Wrap-up" },
 ] as const;
 
 export type InternshipStage = (typeof internshipStages)[number]["value"];

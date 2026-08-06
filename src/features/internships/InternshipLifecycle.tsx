@@ -1,9 +1,13 @@
-import { Check, Circle, CircleDot } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Check, Circle, CircleDot, Lock } from "lucide-react";
 
 import {
   internshipStages,
   internshipStatuses,
   type InternshipLifecycle as InternshipLifecycleData,
+  type InternshipStage,
 } from "@/lib/internships/types";
 import type { StageChecklistDto } from "@/lib/stage-checklists/types";
 import { cn } from "@/lib/utils";
@@ -21,6 +25,30 @@ export function InternshipLifecycle({
   );
   const lifecycleComplete =
     currentStage === "finalReview" && checklist?.isStageCompleted;
+  const [selectedStage, setSelectedStage] = useState<InternshipStage>();
+  const [loadedChecklist, setLoadedChecklist] = useState<StageChecklistDto>();
+  const [loadingStage, setLoadingStage] = useState<InternshipStage>();
+  const selectedChecklist =
+    selectedStage && selectedStage !== checklist?.stage ? loadedChecklist : checklist;
+
+  async function selectStage(stage: InternshipStage) {
+    if (!internshipId || loadingStage || selectedChecklist?.stage === stage) return;
+    setSelectedStage(stage);
+    if (stage === checklist?.stage) {
+      setLoadedChecklist(undefined);
+      return;
+    }
+    setLoadingStage(stage);
+    try {
+      const response = await fetch(
+        `/api/internships/${internshipId}/stage-checklist?stage=${stage}`,
+      );
+      if (!response.ok) throw new Error("Could not load this stage.");
+      setLoadedChecklist((await response.json()) as StageChecklistDto);
+    } finally {
+      setLoadingStage(undefined);
+    }
+  }
 
   if (!statusOption || currentStageIndex === -1) {
     throw new Error("Invalid internship lifecycle data.");
@@ -68,18 +96,23 @@ export function InternshipLifecycle({
           const StateIcon =
             state === "completed" ? Check : state === "current" ? CircleDot : Circle;
 
+          const locked =
+            state === "upcoming" && checklist && !checklist.canViewAllStages;
           return (
             <li
               key={stage.value}
               aria-current={state === "current" ? "step" : undefined}
               className={cn(
-                "flex min-w-0 items-start gap-3 rounded-xl border p-3",
+                "flex min-w-0 items-start gap-3 rounded-xl border p-3 text-left",
+                !locked && "cursor-pointer transition-colors hover:bg-muted/60",
+                locked && "cursor-not-allowed opacity-65",
                 state === "completed" &&
                   "border-[var(--brand-soft)] bg-[var(--brand-soft)]/45",
                 state === "current" &&
                   "border-[var(--brand)] bg-[var(--brand-soft)] shadow-sm",
                 state === "upcoming" && "bg-muted/35",
               )}
+              onClick={() => !locked && selectStage(stage.value)}
             >
               <span
                 aria-hidden="true"
@@ -96,7 +129,10 @@ export function InternshipLifecycle({
                 <StateIcon className="size-3.5" />
               </span>
               <div className="min-w-0">
-                <h3 className="text-sm font-medium leading-snug">{stage.label}</h3>
+                <h3 className="flex items-center gap-1.5 text-sm font-medium leading-snug">
+                  {stage.label}
+                  {locked ? <Lock className="size-3.5" aria-label="Locked" /> : null}
+                </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {state === "completed"
                     ? "Completed"
@@ -109,8 +145,10 @@ export function InternshipLifecycle({
           );
         })}
       </ol>
-      {checklist && internshipId ? (
-        <StageChecklist internshipId={internshipId} checklist={checklist} />
+      {selectedChecklist && internshipId ? (
+        <div aria-busy={Boolean(loadingStage)}>
+          <StageChecklist internshipId={internshipId} checklist={selectedChecklist} />
+        </div>
       ) : null}
     </section>
   );
