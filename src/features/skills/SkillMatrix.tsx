@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Edit2, TrendingDown, TrendingUp, Minus } from "lucide-react";
-import { SKILLS, type SkillRatingDTO } from "@/lib/skills/types";
+import { Edit2, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { SKILLS, type SkillRatingDTO, type SkillRatings } from "@/lib/skills/types";
 import { cn } from "@/lib/utils";
-
+import { EditSkillsModal } from "./EditSkillsModal";
 
 const MOCK_CURRENT_WEEK: SkillRatingDTO = {
   weekKey: "2026-W32",
@@ -29,16 +29,23 @@ const MOCK_PREVIOUS_WEEK: SkillRatingDTO = {
 };
 
 interface SkillMatrixProps {
-  isMentor?: boolean;
-  onEditClick?: () => void;
+    internshipId: string;
+    isMentor?: boolean;
 }
 
-export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) {
+export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
   const [selectedWeek, setSelectedWeek] = useState<string>("2026-W32");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-
-  const currentRatings = MOCK_CURRENT_WEEK.ratings;
+  const [currentRatings, setCurrentRatings] = useState<SkillRatings>(
+    MOCK_CURRENT_WEEK.ratings
+  );
   const previousRatings = MOCK_PREVIOUS_WEEK.ratings;
+
+  const handleSaveRatings = (updatedRatings: SkillRatings) => {
+    setCurrentRatings(updatedRatings);
+
+  };
 
   return (
     <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
@@ -52,7 +59,6 @@ export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) 
         </div>
 
         <div className="flex items-center gap-3">
-
           <select
             value={selectedWeek}
             onChange={(e) => setSelectedWeek(e.target.value)}
@@ -66,8 +72,8 @@ export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) 
           {isMentor && (
             <button
               type="button"
-              onClick={onEditClick}
-              className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 cursor-pointer"
             >
               <Edit2 className="size-4" />
               Edit Ratings
@@ -88,7 +94,6 @@ export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) 
               <div className="flex items-center justify-between text-sm">
                 <span className="font-semibold">{skill}</span>
                 <div className="flex items-center gap-3">
-
                   <span
                     className={cn(
                       "flex items-center text-xs font-semibold px-2 py-0.5 rounded-full",
@@ -102,20 +107,15 @@ export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) 
                     {diff === 0 && <Minus className="mr-1 size-3" />}
                     {diff > 0 ? `+${diff}` : diff}
                   </span>
-
-
                   <span className="font-bold">{currentScore}/10</span>
                 </div>
               </div>
 
-
               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
-
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand-soft)] opacity-60 transition-all duration-300"
                   style={{ width: `${(previousScore / 10) * 100}%` }}
                 />
-
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand)] transition-all duration-300"
                   style={{ width: `${(currentScore / 10) * 100}%` }}
@@ -125,6 +125,15 @@ export function SkillMatrix({ isMentor = true, onEditClick }: SkillMatrixProps) 
           );
         })}
       </div>
+
+
+      <EditSkillsModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        weekKey={selectedWeek}
+        initialRatings={currentRatings}
+        onSave={handleSaveRatings}
+      />
     </div>
   );
 }

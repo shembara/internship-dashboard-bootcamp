@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Save } from "lucide-react";
 import { SKILLS, type SkillRatings } from "@/lib/skills/types";
 
@@ -21,6 +21,12 @@ export function EditSkillsModal({
 }: EditSkillsModalProps) {
   const [ratings, setRatings] = useState<SkillRatings>(initialRatings);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRatings(initialRatings);
+    }
+  }, [initialRatings, isOpen]);
 
   if (!isOpen) return null;
 

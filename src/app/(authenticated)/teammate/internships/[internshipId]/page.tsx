@@ -11,6 +11,7 @@ import { getInternshipTimeline } from "@/server/timeline/service";
 import { requireTeammatePage } from "@/server/assignments/page-auth";
 import { getTeammateInternshipDetail } from "@/server/assignments/service";
 import { AuthorizationError } from "@/server/authorization/errors";
+import { SkillMatrix } from "@/features/skills/SkillMatrix";
 
 export default async function TeammateInternshipPage({
   params,
@@ -50,6 +51,9 @@ export default async function TeammateInternshipPage({
         </h1>
       </div>
       <InternshipLifecycle {...internship} internshipId={internshipId} />
+
+      <SkillMatrix internshipId={internshipId} isMentor={true} />
+
       {internship.progressHub ? (
         <ProgressHub internshipId={internshipId} hub={internship.progressHub} />
       ) : null}
