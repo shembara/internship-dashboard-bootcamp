@@ -34,3 +34,5 @@ export const skillRatingsDocumentSchema = z.object({
 });
 
 export type SkillRatingsDocument = z.infer<typeof skillRatingsDocumentSchema>;
+
+export type SkillRatings = Record<Skill, number>;

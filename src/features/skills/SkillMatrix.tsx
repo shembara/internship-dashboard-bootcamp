@@ -2,30 +2,28 @@
 
 import { useState } from "react";
 import { Edit2, TrendingDown, TrendingUp, Minus } from "lucide-react";
-import { SKILLS, type SkillRatingDTO, type SkillRatings } from "@/lib/skills/types";
+import { SKILLS, type SkillRatings } from "@/lib/skills/types";
 import { cn } from "@/lib/utils";
 import { EditSkillsModal } from "./EditSkillsModal";
 
-const MOCK_CURRENT_WEEK: SkillRatingDTO = {
-  weekKey: "2026-W32",
-  ratings: {
-    "Technical Skills": 8,
-    "Problem Solving": 7,
-    "Communication": 9,
-    "Teamwork": 8,
-    "Autonomy": 6,
-  },
+const MOCK_CURRENT_WEEK: SkillRatings = {
+  "Technical understanding": 80,
+  "Code quality": 75,
+  "Debugging": 70,
+  "Technical decision-making": 65,
+  "Communication": 90,
+  "Ownership": 80,
+  "Understanding requirements": 85,
 };
 
-const MOCK_PREVIOUS_WEEK: SkillRatingDTO = {
-  weekKey: "2026-W31",
-  ratings: {
-    "Technical Skills": 7,
-    "Problem Solving": 7,
-    "Communication": 8,
-    "Teamwork": 9,
-    "Autonomy": 5,
-  },
+const MOCK_PREVIOUS_WEEK: SkillRatings = {
+  "Technical understanding": 70,
+  "Code quality": 72,
+  "Debugging": 68,
+  "Technical decision-making": 60,
+  "Communication": 85,
+  "Ownership": 75,
+  "Understanding requirements": 80,
 };
 
 interface SkillMatrixProps {
@@ -38,9 +36,9 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [currentRatings, setCurrentRatings] = useState<SkillRatings>(
-    MOCK_CURRENT_WEEK.ratings
+    MOCK_CURRENT_WEEK
   );
-  const previousRatings = MOCK_PREVIOUS_WEEK.ratings;
+  const previousRatings = MOCK_PREVIOUS_WEEK;
 
   const handleSaveRatings = (updatedRatings: SkillRatings) => {
     setCurrentRatings(updatedRatings);
@@ -107,18 +105,18 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
                     {diff === 0 && <Minus className="mr-1 size-3" />}
                     {diff > 0 ? `+${diff}` : diff}
                   </span>
-                  <span className="font-bold">{currentScore}/10</span>
+                  <span className="font-bold">{currentScore}/100</span>
                 </div>
               </div>
 
-              <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand-soft)] opacity-60 transition-all duration-300"
-                  style={{ width: `${(previousScore / 10) * 100}%` }}
+                  style={{ width: `${previousScore}%` }}
                 />
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand)] transition-all duration-300"
-                  style={{ width: `${(currentScore / 10) * 100}%` }}
+                  style={{ width: `${currentScore}%` }}
                 />
               </div>
             </div>
