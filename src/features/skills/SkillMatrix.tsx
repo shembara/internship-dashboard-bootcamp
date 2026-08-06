@@ -6,48 +6,64 @@ import { SKILLS, type SkillRatings } from "@/lib/skills/types";
 import { cn } from "@/lib/utils";
 import { EditSkillsModal } from "./EditSkillsModal";
 
-const MOCK_CURRENT_WEEK: SkillRatings = {
-  "Technical understanding": 80,
-  "Code quality": 75,
-  "Debugging": 70,
-  "Technical decision-making": 65,
-  "Communication": 90,
-  "Ownership": 80,
-  "Understanding requirements": 85,
-};
+const CURRENT_WEEK_KEY = "2026-W32";
 
-const MOCK_PREVIOUS_WEEK: SkillRatings = {
-  "Technical understanding": 70,
-  "Code quality": 72,
-  "Debugging": 68,
-  "Technical decision-making": 60,
-  "Communication": 85,
-  "Ownership": 75,
-  "Understanding requirements": 80,
+const INITIAL_WEEKLY_RATINGS: Record<string, SkillRatings> = {
+  "2026-W32": {
+    "Technical understanding": 80,
+    "Code quality": 75,
+    "Debugging": 70,
+    "Technical decision-making": 65,
+    "Communication": 90,
+    "Ownership": 80,
+    "Understanding requirements": 85,
+  },
+  "2026-W31": {
+    "Technical understanding": 70,
+    "Code quality": 72,
+    "Debugging": 68,
+    "Technical decision-making": 60,
+    "Communication": 85,
+    "Ownership": 75,
+    "Understanding requirements": 80,
+  },
 };
 
 interface SkillMatrixProps {
-    internshipId: string;
-    isMentor?: boolean;
+  internshipId: string;
+  isMentor?: boolean;
 }
 
 export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
-  const [selectedWeek, setSelectedWeek] = useState<string>("2026-W32");
+  const [selectedWeek, setSelectedWeek] = useState<string>(CURRENT_WEEK_KEY);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [currentRatings, setCurrentRatings] = useState<SkillRatings>(
-    MOCK_CURRENT_WEEK
+  const [weeklyRatings, setWeeklyRatings] = useState<Record<string, SkillRatings>>(
+    INITIAL_WEEKLY_RATINGS
   );
-  const previousRatings = MOCK_PREVIOUS_WEEK;
+
+  const isCurrentWeek = selectedWeek === CURRENT_WEEK_KEY;
+  const canEdit = isMentor && isCurrentWeek;
+
+  const previousWeekKey = selectedWeek === "2026-W32" ? "2026-W31" : undefined;
+
+  //const currentRatings = weeklyRatings[selectedWeek] ?? {};
+  const currentRatings: SkillRatings = weeklyRatings[selectedWeek] ?? ({} as SkillRatings);
+  const previousRatings: SkillRatings = previousWeekKey
+    ? weeklyRatings[previousWeekKey] ?? ({} as SkillRatings)
+    : ({} as SkillRatings);
+
+  //const previousRatings = previousWeekKey ? weeklyRatings[previousWeekKey] ?? {} : {};
 
   const handleSaveRatings = (updatedRatings: SkillRatings) => {
-    setCurrentRatings(updatedRatings);
-
+    setWeeklyRatings((prev) => ({
+      ...prev,
+      [selectedWeek]: updatedRatings,
+    }));
   };
 
   return (
     <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
-
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold">Skill Matrix</h2>
@@ -66,8 +82,7 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
             <option value="2026-W31">Week 31</option>
           </select>
 
-
-          {isMentor && (
+          {canEdit && (
             <button
               type="button"
               onClick={() => setIsModalOpen(true)}
@@ -79,7 +94,6 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
           )}
         </div>
       </div>
-
 
       <div className="space-y-5">
         {SKILLS.map((skill) => {
@@ -109,7 +123,7 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
                 </div>
               </div>
 
-               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+              <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand-soft)] opacity-60 transition-all duration-300"
                   style={{ width: `${previousScore}%` }}
@@ -124,14 +138,15 @@ export function SkillMatrix({ isMentor = true }: SkillMatrixProps) {
         })}
       </div>
 
-
-      <EditSkillsModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        weekKey={selectedWeek}
-        initialRatings={currentRatings}
-        onSave={handleSaveRatings}
-      />
+      {canEdit && (
+        <EditSkillsModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          weekKey={selectedWeek}
+          initialRatings={currentRatings}
+          onSave={handleSaveRatings}
+        />
+      )}
     </div>
   );
 }
