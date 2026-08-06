@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
@@ -61,10 +61,10 @@ export function SignInCard() {
   const [pendingPersona, setPendingPersona] = useState<string>();
   const [error, setError] = useState<string>();
 
-  async function finishSignIn(credential: UserCredential) {
+  const finishSignIn = useCallback(async (credential: UserCredential) => {
     await establishServerSession(credential);
     window.location.assign("/");
-  }
+  }, []);
 
   async function signInWithGoogle() {
     setError(undefined);
@@ -115,6 +115,7 @@ export function SignInCard() {
       setPendingPersona(undefined);
     }
   }
+
 
   return (
     <section className="w-full max-w-md rounded-3xl border bg-card p-7 shadow-[0_24px_80px_rgba(22,78,63,0.10)] sm:p-9">

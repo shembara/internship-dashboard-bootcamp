@@ -12,3 +12,7 @@ export async function requireChecklistMutationContext(request: Request) {
   }
   return assertAppUser(await getAuthorizationContext(await requireAuthenticatedUser()));
 }
+
+export async function requireChecklistReadContext() {
+  return assertAppUser(await getAuthorizationContext(await requireAuthenticatedUser()));
+}

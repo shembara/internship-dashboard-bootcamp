@@ -129,6 +129,14 @@ const statusHistorySchema = z.object({
   changedBy: z.string().min(1),
   reason: z.string().optional(),
 });
+export function areRequiredChecklistItemsComplete(
+  items: readonly { key: string; type: "required" | "recommended" }[],
+  progressItems: Record<string, { completed: boolean }>,
+) {
+  return items
+    .filter((item) => item.type === "required")
+    .every((item) => progressItems[item.key]?.completed === true);
+}
 
 function timestamp(value: Timestamp | undefined) {
   return value?.toDate().toISOString();
@@ -730,40 +738,69 @@ export async function transitionInternshipStatus(
         break;
     }
 
-    const updates: Record<string, unknown> = {
-      status: nextStatus,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: managerId,
-    };
-
-    if (command.action === "complete" && command.completionDate) {
-      updates.endsAt = Timestamp.fromDate(
-        new Date(`${command.completionDate}T00:00:00.000Z`),
+    if (nextStatus === "completed") {
+      if (internship.currentStage !== "finalReview") {
+        throw new Error("Only Final Review internships can be completed.");
+      }
+      const progressSnapshot = await transaction.get(
+        ref.collection("stageProgress").doc("finalReview"),
       );
-    } else if (command.action === "complete" || command.action === "cancel") {
-      updates.endsAt = FieldValue.serverTimestamp();
+      if (!progressSnapshot.exists) {
+        throw new Error("Final Review is not complete.");
+      }
+      const progress = stageProgressSchema.parse(progressSnapshot.data());
+      if (progress.stage !== "finalReview" || !progress.completedAt) {
+        throw new Error("Complete every required Final Review item first.");
+      }
     }
 
-    transaction.update(ref, updates);
+    const completionDate =
+      command.completionDate ?? dateInApplicationTimeZone(Timestamp.now());
+    const completedAt = Timestamp.fromDate(new Date(`${completionDate}T00:00:00.000Z`));
+    if (
+      nextStatus === "completed" &&
+      completedAt.toMillis() < internship.startsAt.toMillis()
+    ) {
+      throw new Error(
+        "The completion date cannot be before the internship start date.",
+      );
+    }
 
-    const guardRef = adminFirestore.collection("internshipGuards").doc(internship.internId);
+    const guardRef = adminFirestore
+      .collection("internshipGuards")
+      .doc(internship.internId);
+
+    transaction.update(ref, {
+      status: nextStatus,
+      ...(nextStatus === "completed" || nextStatus === "cancelled"
+        ? { endsAt: completedAt }
+        : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: managerId,
+    });
+
     if (nextStatus === "completed" || nextStatus === "cancelled") {
       transaction.delete(guardRef);
     } else {
-      transaction.set(guardRef, {
-        internshipId,
-        status: nextStatus,
-        updatedAt: FieldValue.serverTimestamp(),
-        updatedBy: managerId,
-      });
+      transaction.set(
+        guardRef,
+        {
+          internshipId: ref.id,
+          status: nextStatus,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: managerId,
+        },
+        { merge: true },
+      );
     }
 
-    transaction.create(ref.collection("statusHistory").doc(), {
+    const statusHistoryRef = ref.collection("statusHistory").doc();
+    transaction.create(statusHistoryRef, {
       previousStatus: internship.status,
       newStatus: nextStatus,
       changedAt: FieldValue.serverTimestamp(),
       changedBy: managerId,
-      ...(command.reason ? { reason: command.reason } : {}),
+      ...(command.reason?.trim() ? { reason: command.reason.trim() } : {}),
     });
   });
 }
