@@ -184,6 +184,22 @@ const styles = StyleSheet.create({
     lineHeight: 1.35,
   },
 
+  listRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#F3F4F6",
+    paddingVertical: 4,
+  },
+  listColMain: {
+    flexGrow: 1,
+  },
+  listColSide: {
+    width: 80,
+    textAlign: "right",
+    color: "#6B7280",
+    fontSize: 8,
+  },
+
   footer: {
     position: "absolute",
     bottom: 18,
@@ -241,7 +257,6 @@ export function InternReportDocument({ data }: { data: InternReportData }) {
     internship,
     placements,
     teammateAssignments,
-    managerAssignments,
     statusHistory,
     achievements,
     generatedAt,
@@ -252,10 +267,7 @@ export function InternReportDocument({ data }: { data: InternReportData }) {
       ? internship.progressHub.mentorCheckIns
       : internship.progressHub.checkInHistory;
 
-  const reflections =
-    "reflections" in internship.progressHub
-      ? internship.progressHub.reflections
-      : internship.progressHub.reflectionHistory;
+  const reflections = internship.progressHub.reflections;
 
   return (
     <Document title={`${internship.intern.displayName} - Internship Report`}>
