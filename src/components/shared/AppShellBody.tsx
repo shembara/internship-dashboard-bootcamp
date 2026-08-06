@@ -3,31 +3,27 @@
 import { usePathname } from "next/navigation";
 
 import { Sidebar } from "@/components/shared/Sidebar";
+import { shouldShowSidebar } from "@/config/sidebar.config";
 import { cn } from "@/lib/utils";
 
 export function AppShellBody({
-  children,
   roles,
+  children,
 }: {
-  children: React.ReactNode;
   roles: string[];
+  children: React.ReactNode;
 }) {
   const pathname = usePathname();
-
-  const hasSidebar =
-    (roles.includes("intern") && pathname.startsWith("/intern")) ||
-    (roles.includes("teammate") && pathname.startsWith("/teammate")) ||
-    (roles.includes("manager") &&
-      /^\/manager\/internships\/[^/]+/.test(pathname));
+  const showSidebar = shouldShowSidebar(pathname, roles);
 
   return (
     <div
       className={cn(
-        "mx-auto max-w-6xl gap-6 px-4 py-6 sm:px-6 md:py-10",
-        hasSidebar && "grid md:grid-cols-[260px_minmax(0,1fr)]",
+        "grid gap-8 p-5 sm:p-8",
+        showSidebar && "md:grid-cols-[240px_minmax(0,1fr)]",
       )}
     >
-      {hasSidebar ? <Sidebar roles={roles} /> : null}
+      <Sidebar roles={roles} />
       <main className="min-w-0">{children}</main>
     </div>
   );

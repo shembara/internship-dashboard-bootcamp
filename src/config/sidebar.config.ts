@@ -194,3 +194,28 @@ export const sidebarRoles: SidebarRole[] = ["manager", "intern", "teammate"];
 export function isSidebarRole(role: string): role is SidebarRole {
   return sidebarRoles.includes(role as SidebarRole);
 }
+
+export function getSidebarRoleForPath(pathname: string, roles: string[]): SidebarRole | null {
+  const activeSidebarRoles = roles.filter(isSidebarRole);
+
+  if (pathname.startsWith("/intern") && activeSidebarRoles.includes("intern")) {
+    return "intern";
+  }
+
+  if (
+    /^\/manager\/internships\/[^/]+/.test(pathname) &&
+    activeSidebarRoles.includes("manager")
+  ) {
+    return "manager";
+  }
+
+  if (pathname.startsWith("/teammate") && activeSidebarRoles.includes("teammate")) {
+    return "teammate";
+  }
+
+  return null;
+}
+
+export function shouldShowSidebar(pathname: string, roles: string[]): boolean {
+  return getSidebarRoleForPath(pathname, roles) !== null;
+}

@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import {
-  isSidebarRole,
+  getSidebarRoleForPath,
   sidebarConfigByRole,
   type SidebarGroup,
   type SidebarRole,
@@ -16,27 +16,6 @@ import { cn } from "@/lib/utils";
 type SidebarProps = {
   roles: string[];
 };
-
-function getSidebarRoleForPath(pathname: string, roles: string[]): SidebarRole | null {
-  const sidebarRoles = roles.filter(isSidebarRole);
-
-  if (pathname.startsWith("/intern") && sidebarRoles.includes("intern")) {
-    return "intern";
-  }
-
-  if (
-    /^\/manager\/internships\/[^/]+/.test(pathname) &&
-    sidebarRoles.includes("manager")
-  ) {
-    return "manager";
-  }
-
-  if (pathname.startsWith("/teammate") && sidebarRoles.includes("teammate")) {
-    return "teammate";
-  }
-
-  return null;
-}
 
 function getInternshipId(pathname: string, role: SidebarRole | null) {
   if (role === "manager") {
