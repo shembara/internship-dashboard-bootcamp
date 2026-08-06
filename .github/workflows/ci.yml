@@ -34,4 +34,9 @@ jobs:
         run: npm test
 
       - name: Build
+        env:
+          # Next.js evaluates server environment validation while collecting page data.
+          # This is only a build-time placeholder; CI never connects to Firebase.
+          FIREBASE_PROJECT_ID: ci-build-project
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-build-project
         run: npm run build

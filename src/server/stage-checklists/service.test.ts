@@ -48,6 +48,7 @@ function internship(internId = "intern-1"): InternshipDocument {
 
 const currentMentorAssignment = {
   teammateUserId: "mentor-1",
+  teamId: "team-1",
   responsibilities: ["mentor"],
   startsAt: Timestamp.fromMillis(0),
 };

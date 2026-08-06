@@ -12,7 +12,12 @@ import {
   type ChecklistCompletionActor,
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
-import { isCurrent, isCurrentManagerAssignment } from "@/server/assignments/domain";
+import {
+  isCurrent,
+  isCurrentManagerAssignment,
+  managerAssignmentDocumentSchema,
+  teammateAssignmentDocumentSchema,
+} from "@/server/assignments/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { adminFirestore } from "@/server/firebase/admin";
 import {
@@ -57,7 +62,8 @@ const customItemSchema = z.object({
   createdBy: z.string().min(1),
 });
 
-const stageProgressSchema = z.object({
+export const stageProgressSchema = z.object({
+
   stage: z.enum(stageValues),
   items: z.record(z.string(), itemProgressSchema),
   customItems: z.array(customItemSchema).default([]),
@@ -77,18 +83,6 @@ type ChecklistAccess = {
   canAdvance: boolean;
   canAddTasks: boolean;
 };
-
-const managerAssignmentSchema = z.object({
-  userId: z.string().min(1),
-  startsAt: z.instanceof(Timestamp).optional(),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
-
-const teammateAssignmentSchema = z.object({
-  responsibilities: z.array(z.string()),
-  startsAt: z.instanceof(Timestamp),
-  endsAt: z.instanceof(Timestamp).optional(),
-});
 
 function initialItems(stage: InternshipStage) {
   return Object.fromEntries(
@@ -164,14 +158,14 @@ export function resolveChecklistAccess(
   const now = Timestamp.now();
   const intern = appUser.roles.includes("intern") && internship.internId === userId;
   const managerAssignmentData = managerAssignment.exists
-    ? managerAssignmentSchema.parse(managerAssignment.data())
+    ? managerAssignmentDocumentSchema.parse(managerAssignment.data())
     : undefined;
   const manager =
     appUser.roles.includes("manager") &&
     managerAssignmentData?.userId === userId &&
     isCurrentManagerAssignment(managerAssignmentData, now);
   const teammateAssignmentsForUser = teammateAssignments.docs.map((document) =>
-    teammateAssignmentSchema.parse(document.data()),
+    teammateAssignmentDocumentSchema.parse(document.data()),
   );
   const teammate =
     appUser.roles.includes("teammate") &&

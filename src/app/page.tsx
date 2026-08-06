@@ -10,18 +10,20 @@ export default async function HomePage() {
   }
 
   const context = await getAuthorizationContext(user);
-  if (context.access !== "appUser") {
-    redirect("/forbidden");
-  }
-  if (context.appUser.roles.includes("manager")) {
-    redirect("/manager/internships");
-  }
-  if (context.appUser.roles.includes("intern")) {
-    redirect("/intern");
-  }
-  if (context.appUser.roles.includes("teammate")) {
-    redirect("/teammate");
+  if (context.access === "appUser") {
+    if (context.appUser.roles.includes("manager")) {
+      redirect("/manager/internships");
+    }
+    if (context.appUser.roles.includes("intern")) {
+      redirect("/intern");
+    }
+    if (context.appUser.roles.includes("teammate")) {
+      redirect("/teammate");
+    }
+    if (context.appUser.roles.includes("guest")) {
+      redirect("/guest");
+    }
   }
 
-  redirect("/forbidden");
+  redirect("/guest");
 }

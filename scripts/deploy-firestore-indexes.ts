@@ -44,7 +44,8 @@ const auth = new GoogleAuth({
   scopes: ["https://www.googleapis.com/auth/cloud-platform"],
 });
 const client = await auth.getClient();
-const apiRoot = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/(default)`;
+const databaseId = process.env.FIRESTORE_DATABASE_ID ?? "(default)";
+const apiRoot = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/databases/${encodeURIComponent(databaseId)}`;
 
 function sameIndex(left: IndexDefinition, right: ExistingIndex): boolean {
   return (

@@ -12,21 +12,21 @@ import { recordFirestoreReadPath } from "@/server/firebase/read-diagnostics";
 
 export type AuthorizationContext =
   | {
-      access: "guest";
-      user: AuthenticatedUser;
-    }
+    access: "notInvited";
+    user: AuthenticatedUser;
+  }
   | {
-      access: "disabled";
-      user: AuthenticatedUser;
-      userId: string;
-      appUser: AppUser;
-    }
+    access: "disabled";
+    user: AuthenticatedUser;
+    userId: string;
+    appUser: AppUser;
+  }
   | {
-      access: "appUser";
-      user: AuthenticatedUser;
-      userId: string;
-      appUser: AppUser;
-    };
+    access: "appUser";
+    user: AuthenticatedUser;
+    userId: string;
+    appUser: AppUser;
+  };
 
 const getAppUserRecordForAuthorization = cache(async function getAppUserRecord(
   firebaseUid: string,
@@ -47,7 +47,7 @@ export async function getAuthorizationContext(
 
   if (!appUserRecord) {
     return {
-      access: "guest",
+      access: "notInvited",
       user,
     };
   }

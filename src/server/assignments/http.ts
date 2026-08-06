@@ -21,7 +21,11 @@ export async function requireManagerMutationContext(request: Request) {
 
 export function assignmentErrorResponse(error: unknown) {
   if (error instanceof z.ZodError) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    const [issue] = error.issues;
+    return NextResponse.json(
+      { error: issue?.message ?? "Invalid request." },
+      { status: 400 },
+    );
   }
   if (error instanceof AuthorizationError) {
     return NextResponse.json({ error: error.message }, { status: 403 });

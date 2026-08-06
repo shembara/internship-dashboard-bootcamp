@@ -35,7 +35,9 @@ export function AppShell({
             <p className="truncate text-xs text-muted-foreground">
               {context.access === "appUser"
                 ? context.appUser.roles.join(" · ")
-                : context.access}
+                : context.access === "disabled"
+                  ? "disabled"
+                  : "Not invited"}
             </p>
           </div>
           <SignOutButton />
