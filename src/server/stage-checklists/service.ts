@@ -10,6 +10,7 @@ import type {
 import {
   getStageChecklistTemplate,
   type ChecklistCompletionActor,
+  type StageChecklistItemTemplate,
 } from "@/lib/stage-checklists/templates";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import {
@@ -91,6 +92,32 @@ function initialItems(stage: InternshipStage) {
       { completed: false, status: "todo" as const },
     ]),
   );
+}
+
+function checklistItemDefinition(
+  stage: InternshipStage,
+  progress: StageProgress,
+  key: string,
+): StageChecklistItemTemplate | undefined {
+  const templateItem = getStageChecklistTemplate(stage).items.find(
+    (item) => item.key === key,
+  );
+  if (templateItem) return templateItem;
+
+  const customItem = progress.customItems.find((item) => item.key === key);
+  return customItem
+    ? {
+        ...customItem,
+        allowedCompletionActors: ["intern", "mentor", "manager"],
+      }
+    : undefined;
+}
+
+export function canCompleteChecklistItem(
+  item: Pick<StageChecklistItemTemplate, "allowedCompletionActors">,
+  completionActors: readonly ChecklistCompletionActor[],
+) {
+  return completionActors.some((actor) => item.allowedCompletionActors.includes(actor));
 }
 
 function initialStageProgress(stage: InternshipStage, actorId: string) {
@@ -276,7 +303,10 @@ function stageChecklistDto(
       completed: status === "done",
       completedAt: itemProgress.completedAt?.toDate().toISOString(),
       completedBy: itemProgress.completedBy,
-      canComplete: isMutable && !isStageCompleted && access.completionActors.length > 0,
+      canComplete:
+        isMutable &&
+        !isStageCompleted &&
+        canCompleteChecklistItem(item, access.completionActors),
     };
   });
   const requiredItems = items.filter((item) => item.type === "required");
@@ -373,11 +403,15 @@ export async function updateChecklistItem(
         "You cannot update tasks for this internship.",
       );
     }
-    const knownKeys = new Set([
-      ...getStageChecklistTemplate(input.stage).items.map((item) => item.key),
-      ...(progress?.customItems ?? []).map((item) => item.key),
-    ]);
-    if (!knownKeys.has(input.itemKey)) throw new Error("Task not found.");
+    const activeProgress = progress ?? initialReadOnlyStageProgress(input.stage);
+    const item = checklistItemDefinition(input.stage, activeProgress, input.itemKey);
+    if (!item) throw new Error("Task not found.");
+    if (!canCompleteChecklistItem(item, access.completionActors)) {
+      throw new AuthorizationError(
+        "ROLE_REQUIRED",
+        "You cannot update this task for this internship.",
+      );
+    }
     const items: Record<string, unknown> = {
       ...(progress?.items ?? initialItems(input.stage)),
     };
