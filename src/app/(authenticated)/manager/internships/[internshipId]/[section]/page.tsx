@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { InternshipLifecycle } from "@/features/internships/InternshipLifecycle";
-import { StageChecklist } from "@/features/stage-checklists/StageChecklist";
 import { ManagerStatusActions } from "@/features/manager-portfolio/ManagerStatusActions";
 import { ExpectedEndDateAction } from "@/features/manager-portfolio/ExpectedEndDateAction";
 import { ProgressHub, type ProgressHubSection } from "@/features/progress-hub/ProgressHub";
@@ -63,7 +62,6 @@ export default async function ManagerInternshipSectionPage({
   const validSections = [
     ...progressHubSections,
     "internship-lifecycle",
-    "stage-checklist",
     "internship-status",
     "achievements",
     "internship-timeline",

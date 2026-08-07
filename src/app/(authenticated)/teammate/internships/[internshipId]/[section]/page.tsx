@@ -6,7 +6,6 @@ import {
   ProgressHub,
   type ProgressHubSection,
 } from "@/features/progress-hub/ProgressHub";
-import { StageChecklist } from "@/features/stage-checklists/StageChecklist";
 import { Achievements } from "@/features/achievements/Achievements";
 import { InternshipTimeline } from "@/features/timeline/InternshipTimeline";
 import { workspaceStyles } from "@/lib/manager-workspace/theme";
@@ -60,7 +59,6 @@ export default async function TeammateInternshipSectionPage({
   const validSections = [
     ...progressHubSections,
     "internship-lifecycle",
-    "stage-checklist",
     "one-on-one-preparation",
     "achievements",
     "internship-timeline",
@@ -100,14 +98,6 @@ export default async function TeammateInternshipSectionPage({
           currentStage={internship.currentStage}
           checklist={internship.checklist}
           internshipId={internshipId}
-          variant="dark"
-        />
-      ) : null}
-
-      {section === "stage-checklist" && internship.checklist ? (
-        <StageChecklist
-          internshipId={internshipId}
-          checklist={internship.checklist}
           variant="dark"
         />
       ) : null}
