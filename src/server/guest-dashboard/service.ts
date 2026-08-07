@@ -132,6 +132,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         checkIns,
         achievements,
         history,
+        skillRatingsSnap,
       ] = await Promise.all([
         adminFirestore.collection("users").doc(internship.internId).get(),
         ref.collection("teamPlacements").get(),
@@ -142,6 +143,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         ref.collection("mentorCheckIns").orderBy("weekKey", "desc").limit(16).get(),
         ref.collection("achievements").orderBy("achievedOn", "desc").limit(100).get(),
         ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
+        ref.collection("skillRatings").get(),
       ]);
       const mentorIds = teammates.docs
         .map((entry) => entry.data())
@@ -188,6 +190,16 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
         internship.endsAt,
         statusChanges,
       );
+
+      // Сортуємо отримані документи за weekKey у зворотному порядку та беремо найновіші оцінки
+      const skillDocs = skillRatingsSnap.docs.map((d) => d.data());
+      const sortedSkills = skillDocs.sort((a, b) =>
+        (b.weekKey || "").localeCompare(a.weekKey || ""),
+      );
+      const latestSkillRatings = sortedSkills[0]?.ratings as
+        | Record<string, number>
+        | undefined;
+
       return {
         id: document.id,
         internName:
@@ -205,6 +217,7 @@ export async function getGuestDashboard(): Promise<GuestDashboardDto> {
           : undefined,
         requiredCompletedCount: completed,
         requiredTotalCount: required.length,
+        skillRatings: latestSkillRatings,
         timeline: [
           ...(() => {
             const occurredAt = iso(internshipData.createdAt);

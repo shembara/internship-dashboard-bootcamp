@@ -1,52 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { Edit2, TrendingDown, TrendingUp, Minus } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Edit2, TrendingDown, TrendingUp, Minus, Loader2 } from "lucide-react";
 import { SKILLS, type SkillRatings } from "@/lib/skills/types";
 import { cn } from "@/lib/utils";
+import { getCurrentWeek } from "@/lib/progress-hub/week";
 import { EditSkillsModal } from "./EditSkillsModal";
 
-const CURRENT_WEEK_KEY = "2026-W32";
-
-const INITIAL_WEEKLY_RATINGS: Record<string, SkillRatings> = {
-  "2026-W32": {
-    "Technical understanding": 80,
-    "Code quality": 75,
-    "Debugging": 70,
-    "Technical decision-making": 65,
-    "Communication": 90,
-    "Ownership": 80,
-    "Understanding requirements": 85,
-  },
-  "2026-W31": {
-    "Technical understanding": 70,
-    "Code quality": 72,
-    "Debugging": 68,
-    "Technical decision-making": 60,
-    "Communication": 85,
-    "Ownership": 75,
-    "Understanding requirements": 80,
-  },
-};
+const CURRENT_WEEK_KEY = getCurrentWeek().key;
 
 interface SkillMatrixProps {
   internshipId: string;
   isMentor?: boolean;
 }
 
-export function SkillMatrix({ internshipId, isMentor }: SkillMatrixProps) {
+export function SkillMatrix({ internshipId, isMentor = true }: SkillMatrixProps) {
   const [selectedWeek, setSelectedWeek] = useState<string>(CURRENT_WEEK_KEY);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [weeklyRatings, setWeeklyRatings] = useState<Record<string, SkillRatings>>(
-    INITIAL_WEEKLY_RATINGS
-  );
+  const [weeklyRatings, setWeeklyRatings] = useState<Record<string, SkillRatings>>({});
 
   const isCurrentWeek = selectedWeek === CURRENT_WEEK_KEY;
   const canEdit = Boolean(isMentor && isCurrentWeek);
 
-  const currentRatings: SkillRatings =
-    weeklyRatings[selectedWeek] ?? ({} as SkillRatings);
+  const fetchSkillRatings = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(`/api/internships/${internshipId}/skills`);
+      if (response.ok) {
+        const rawData = await response.json();
+        const mapped: Record<string, SkillRatings> = {};
+
+        if (Array.isArray(rawData)) {
+          rawData.forEach((item: any) => {
+            if (item && item.weekKey && item.ratings) {
+              mapped[item.weekKey] = item.ratings;
+            }
+          });
+        }
+        else if (rawData && typeof rawData === "object") {
+          if (rawData.weekKey && rawData.ratings) {
+            mapped[rawData.weekKey] = rawData.ratings;
+          } else if (rawData.ratings) {
+            mapped[selectedWeek] = rawData.ratings;
+          }
+        }
+
+        setWeeklyRatings(mapped);
+      }
+    } catch (error) {
+      console.error("Failed to load skill ratings:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [internshipId, selectedWeek]);
+
+  useEffect(() => {
+    fetchSkillRatings();
+  }, [fetchSkillRatings]);
 
   const getPreviousWeekKey = (weekKey: string) => {
     const match = weekKey.match(/^(\d{4})-W(\d+)$/);
@@ -57,16 +69,50 @@ export function SkillMatrix({ internshipId, isMentor }: SkillMatrixProps) {
   };
 
   const previousWeekKey = getPreviousWeekKey(selectedWeek);
-  const previousRatings: SkillRatings = previousWeekKey
-    ? weeklyRatings[previousWeekKey] ?? ({} as SkillRatings)
-    : ({} as SkillRatings);
 
-  const handleSaveRatings = (updatedRatings: SkillRatings) => {
-    setWeeklyRatings((prev) => ({
-      ...prev,
-      [selectedWeek]: updatedRatings,
-    }));
+  const formatWeekLabel = (weekKey: string) => {
+    const match = weekKey.match(/W(\d+)$/);
+    return match ? `Week ${parseInt(match[1], 10)}` : weekKey;
   };
+
+  const currentRatings: SkillRatings = (weeklyRatings[selectedWeek] || {}) as SkillRatings;
+  const previousRatings: SkillRatings = previousWeekKey ? ((weeklyRatings[previousWeekKey] || {}) as SkillRatings) : ({} as SkillRatings);
+  const handleSaveRatings = async (updatedRatings: SkillRatings) => {
+    try {
+      const response = await fetch(`/api/internships/${internshipId}/skills`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekKey: selectedWeek,
+          ratings: updatedRatings,
+        }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to save ratings");
+      }
+
+      setWeeklyRatings((prev) => ({
+        ...prev,
+        [selectedWeek]: updatedRatings,
+      }));
+
+      setIsModalOpen(false);
+      await fetchSkillRatings();
+    } catch (error: any) {
+      console.error("Error saving ratings:", error);
+      alert(`Помилка збереження: ${error.message}`);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-48 items-center justify-center rounded-2xl border bg-card p-6 shadow-sm">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
@@ -84,8 +130,14 @@ export function SkillMatrix({ internshipId, isMentor }: SkillMatrixProps) {
             onChange={(e) => setSelectedWeek(e.target.value)}
             className="rounded-lg border bg-background px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--brand)]"
           >
-            <option value="2026-W32">Week 32 (Current)</option>
-            <option value="2026-W31">Week 31</option>
+            <option value={CURRENT_WEEK_KEY}>
+              {formatWeekLabel(CURRENT_WEEK_KEY)} (Current)
+            </option>
+            {previousWeekKey && (
+              <option value={previousWeekKey}>
+                {formatWeekLabel(previousWeekKey)}
+              </option>
+            )}
           </select>
 
           {canEdit && (
@@ -129,7 +181,6 @@ export function SkillMatrix({ internshipId, isMentor }: SkillMatrixProps) {
                 </div>
               </div>
 
-              {/* Прогрес бар із прозорою фоновою підкладкою попереднього тижня */}
               <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="absolute left-0 top-0 h-full bg-[var(--brand-soft)] opacity-60 transition-all duration-300"

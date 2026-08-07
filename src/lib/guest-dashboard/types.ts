@@ -12,6 +12,7 @@ export type GuestDashboardItem = {
   manager?: string;
   requiredCompletedCount: number;
   requiredTotalCount: number;
+  skillRatings?: Record<string, number>;
   timeline: Array<{
     id: string;
     occurredAt: string;

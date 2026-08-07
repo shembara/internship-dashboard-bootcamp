@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { GuestDashboardDto } from "@/lib/guest-dashboard/types";
 import { internshipStages, internshipStatuses } from "@/lib/internships/types";
+import { SKILLS } from "@/lib/skills/types";
 import { formatDate } from "@/lib/utils";
 
 function label<T extends { value: string; label: string }>(
@@ -134,9 +135,25 @@ export function GuestDashboard({ dashboard }: { dashboard: GuestDashboardDto }) 
                   </section>
                   <section>
                     <h3 className="font-semibold">Skill metrics</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Not available yet.
-                    </p>
+                    <div className="mt-3 space-y-3">
+                      {SKILLS.map((skill) => {
+                        const score = item.skillRatings?.[skill] ?? 0;
+                        return (
+                          <div key={skill} className="space-y-1">
+                            <div className="flex justify-between text-xs font-medium">
+                              <span className="text-muted-foreground">{skill}</span>
+                              <span className="font-semibold">{score}/100</span>
+                            </div>
+                            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                              <div
+                                className="h-full bg-emerald-500 transition-all duration-300"
+                                style={{ width: `${score}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </section>
                   <section className="md:col-span-2">
                     <h3 className="font-semibold">Achievements</h3>
