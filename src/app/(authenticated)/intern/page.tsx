@@ -68,17 +68,6 @@ export default async function InternPage() {
                 Published feedback will appear here.
               </div>
             </section>
-            <section id="one-on-one-preparation" className="scroll-mt-24 space-y-4">
-              <div>
-                <h2 className={styles.heading}>1:1 Preparation</h2>
-                <p className={styles.description}>
-                  Prepare discussion points for your upcoming one-to-one meetings.
-                </p>
-              </div>
-              <div className={styles.dashedPlaceholder}>
-                One-to-one preparation will be added here.
-              </div>
-            </section>
           </div>
         </div>
       ) : (

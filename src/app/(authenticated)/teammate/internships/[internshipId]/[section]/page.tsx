@@ -61,7 +61,6 @@ export default async function TeammateInternshipSectionPage({
   const validSections = [
     ...progressHubSections,
     "internship-lifecycle",
-    "one-on-one-preparation",
     "achievements",
     "internship-timeline",
     "status-history",
@@ -126,20 +125,6 @@ export default async function TeammateInternshipSectionPage({
           visibleSection={section as ProgressHubSection}
           variant="dark"
         />
-      ) : null}
-
-      {section === "one-on-one-preparation" ? (
-        <section className={styles.section}>
-          <div>
-            <h2 className={styles.heading}>1:1 Preparation</h2>
-            <p className={styles.description}>
-              Prepare talking points for upcoming one-to-one meetings.
-            </p>
-          </div>
-          <div className={styles.dashedPlaceholder}>
-            One-to-one preparation will be added here.
-          </div>
-        </section>
       ) : null}
 
       {section === "achievements" && achievementsData ? (

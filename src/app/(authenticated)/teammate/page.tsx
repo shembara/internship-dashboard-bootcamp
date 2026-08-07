@@ -7,22 +7,23 @@ import { listTeammateInternships } from "@/server/assignments/service";
 
 export default async function TeammatePage() {
   const context = await requireTeammatePage();
-  const internships = await listTeammateInternships(context.userId);
+  const mentorInternships = await listTeammateInternships(context.userId);
+
   const styles = workspaceStyles("dark");
 
   return (
     <section className="workspace-page space-y-6">
       <div className="space-y-2">
         <Breadcrumbs variant="dark" items={[{ label: "Internships" }]} />
-        <p className={styles.eyebrow}>Teammate workspace</p>
+        <p className={styles.eyebrow}>Mentor workspace</p>
         <h1 className={styles.pageHeading}>Internships</h1>
         <p className={styles.description}>
-          Internships where you have a teammate assignment.
+          Interns assigned to you as a mentor.
         </p>
       </div>
-      {internships.length ? (
+      {mentorInternships.length ? (
         <div className="grid gap-3">
-          {internships.map((internship) => (
+          {mentorInternships.map((internship) => (
             <Link
               key={internship.id}
               href={`/teammate/internships/${internship.id}`}
@@ -37,9 +38,9 @@ export default async function TeammatePage() {
         </div>
       ) : (
         <div className={styles.emptyState}>
-          <h2 className="font-semibold text-white">No internships assigned</h2>
+          <h2 className="font-semibold text-white">No interns assigned</h2>
           <p className="mt-2 text-sm text-[#8b949e]">
-            Your assigned internships will appear here.
+            Interns assigned to you as a mentor will appear here.
           </p>
         </div>
       )}

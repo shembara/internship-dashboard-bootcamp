@@ -21,7 +21,7 @@ const localPersonas = [
   },
   {
     id: "mentor2",
-    name: "Sasga Mentor",
+    name: "Sasha Mentor",
     email: "mentor@fluxon.com",
   },
   {

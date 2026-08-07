@@ -105,6 +105,7 @@ export const updateResponsibilitiesInputSchema = z.object({
 });
 
 type TeamInput = z.infer<typeof teamInputSchema>;
+
 async function requireManagedInternship(internshipId: string, managerId: string) {
   const internshipRef = adminFirestore.collection("internships").doc(internshipId);
   const [internship, managerAssignment] = await Promise.all([
@@ -137,14 +138,26 @@ async function requireTeammateInternship(internshipId: string, teammateUserId: s
     internshipRef
       .collection("teammateAssignments")
       .where("teammateUserId", "==", teammateUserId)
-      .limit(1)
       .get(),
   ]);
 
-  if (!internship.exists || assignments.empty) {
+  const isMentor = assignments.docs.some((doc) => {
+    const data = doc.data() as {
+      responsibilities?: string[];
+      startsAt?: Timestamp;
+      endsAt?: Timestamp;
+    };
+    return (
+      data.responsibilities?.includes("mentor") &&
+      data.startsAt &&
+      isOngoingOrScheduled({ startsAt: data.startsAt, endsAt: data.endsAt })
+    );
+  });
+
+  if (!internship.exists || !isMentor) {
     throw new AuthorizationError(
       "ROLE_REQUIRED",
-      "You are not assigned to this internship.",
+      "You are not assigned as a mentor to this internship.",
       "teammate",
     );
   }
@@ -200,7 +213,6 @@ export async function listManagedInternships(
 
   if (assignments.empty) return [];
 
-  // Batch 1: Get all internship references
   const internshipRefs = [
     ...new Set(
       assignments.docs.flatMap((assignment) => {
@@ -216,7 +228,6 @@ export async function listManagedInternships(
     return [{ ref: doc.ref, data: parseInternshipDocument(doc.data()) }];
   });
 
-  // Batch 2: Get all intern user documents at once
   const internIds = [...new Set(activeInternships.map((i) => i.data.internId))];
   const internDocs = internIds.length
     ? await adminFirestore.getAll(...internIds.map((id) => adminFirestore.collection("users").doc(id)))
@@ -239,30 +250,47 @@ export async function listManagedInternships(
 export async function listTeammateInternships(
   teammateUserId: string,
 ): Promise<InternshipListItemDto[]> {
-  const assignments = await adminFirestore
+  const assignmentsSnapshot = await adminFirestore
     .collectionGroup("teammateAssignments")
     .where("teammateUserId", "==", teammateUserId)
     .get();
 
-  const internshipRefs = [
-    ...new Set(
-      assignments.docs.flatMap((assignment) => {
-        const ref = assignment.ref.parent.parent;
-        return ref ? [ref] : [];
-      }),
-    ),
-  ];
+  const mentorAssignmentsMap = new Map<string, string[]>();
+
+  for (const doc of assignmentsSnapshot.docs) {
+    const data = doc.data() as {
+      responsibilities?: string[];
+      startsAt?: Timestamp;
+      endsAt?: Timestamp;
+    };
+
+    if (
+      data.responsibilities?.includes("mentor") &&
+      data.startsAt &&
+      isOngoingOrScheduled({ startsAt: data.startsAt, endsAt: data.endsAt })
+    ) {
+      const parentRef = doc.ref.parent.parent;
+      if (parentRef) {
+        const existing = mentorAssignmentsMap.get(parentRef.id) ?? [];
+        mentorAssignmentsMap.set(parentRef.id, [
+          ...new Set([...existing, ...(data.responsibilities ?? [])]),
+        ]);
+      }
+    }
+  }
+
+  const internshipRefs = [...mentorAssignmentsMap.keys()].map((id) =>
+    adminFirestore.collection("internships").doc(id),
+  );
 
   if (!internshipRefs.length) return [];
 
-  // Batch 1: Fetch all parent internships in one call
   const internshipDocs = await adminFirestore.getAll(...internshipRefs);
   const parsedInternships = internshipDocs.flatMap((doc) => {
     if (!doc.exists) return [];
     return [{ id: doc.id, data: parseInternshipDocument(doc.data()) }];
   });
 
-  // Batch 2: Fetch all intern user documents in one call
   const internUserRefs = [
     ...new Set(
       parsedInternships.map((item) =>
@@ -283,6 +311,7 @@ export async function listTeammateInternships(
       status: data.status,
       currentStage: data.currentStage,
       internName: internNames.get(data.internId) ?? "Unknown intern",
+      responsibilities: mentorAssignmentsMap.get(id) ?? [],
     }))
     .sort((a, b) => a.internName.localeCompare(b.internName));
 }
