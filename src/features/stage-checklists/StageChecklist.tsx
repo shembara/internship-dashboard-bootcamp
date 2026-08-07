@@ -511,19 +511,6 @@ export function StageChecklist({
           {checklist.latestReviewRequest}
         </p>
       ) : null}
-      <section className="rounded-xl border bg-muted/30 p-3" aria-label="Skill progress">
-        <h3 className="font-semibold">Skill progress</h3>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {checklist.skillProgress.map((skill) => (
-            <div key={skill.skill} className="flex items-center justify-between gap-2 text-sm">
-              <span>{skill.label}</span>
-              <span className="text-muted-foreground">
-                {skill.completedPoints}/{skill.maxPoints} · {skill.percentage}%
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
       <div className="grid gap-4 md:grid-cols-3">
         {columns.map((column) => {
           const items = checklist.items.filter((item) => item.status === column.status);

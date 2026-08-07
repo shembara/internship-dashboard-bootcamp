@@ -1,6 +1,6 @@
 import type { InternshipLifecycle, InternshipStage } from "@/lib/internships/types";
 import type { ChecklistItemType } from "@/lib/stage-checklists/templates";
-import type { InternshipSkill, SkillProgressDto } from "@/lib/skills/types";
+import type { InternshipSkill } from "@/lib/skills/types";
 
 export type StageChecklistItemDto = {
   key: string;

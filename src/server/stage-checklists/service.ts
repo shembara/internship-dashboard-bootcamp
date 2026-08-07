@@ -20,12 +20,8 @@ import {
   internshipSkills,
   type InternshipSkill,
   type SkillPointItem,
-  type SkillProgressDto,
 } from "@/lib/skills/types";
-import {
-  calculateSkillProgress,
-  exceedsSkillPointTargets,
-} from "@/lib/skills/progress";
+import { exceedsSkillPointTargets } from "@/lib/skills/progress";
 import {
   isCurrent,
   isCurrentManagerAssignment,
@@ -353,7 +349,6 @@ function stageChecklistDto(
   progress: StageProgress,
   access: ChecklistAccess,
   isMutable: boolean,
-  skillProgress: SkillProgressDto[],
 ): StageChecklistDto {
   const template = getStageChecklistTemplate(stage);
   const isStageCompleted = Boolean(progress.completedAt);
@@ -427,10 +422,6 @@ function stageChecklistDto(
   };
 }
 
-function internshipSkillProgress(progressByStage: Map<InternshipStage, StageProgress>) {
-  return calculateSkillProgress(skillPointItems(progressByStage));
-}
-
 function skillPointItems(
   progressByStage: Map<InternshipStage, StageProgress>,
 ): SkillPointItem[] {
@@ -447,6 +438,8 @@ function skillPointItems(
       },
     );
   });
+}
+
 function skillAreasForItem(key: string): SkillProgressArea[] {
   const areas = new Set<SkillProgressArea>();
   const includes = (value: string) => key.includes(value);
@@ -561,27 +554,16 @@ export async function getStageChecklist(
     internship.status === "active" && selectedStage === internship.currentStage
       ? await ensureStageProgress(internshipRef, selectedStage, userId)
       : internshipRef.collection("stageProgress").doc(selectedStage);
-  const [progress, allProgress] = await Promise.all([
-    progressRef.get(),
-    internshipRef.collection("stageProgress").get(),
-  ]);
-  const progressByStage = new Map<InternshipStage, StageProgress>();
-  for (const document of allProgress.docs) {
-    const stage = internshipStages.find((candidate) => candidate.value === document.id)
-      ?.value;
-    if (stage) progressByStage.set(stage, parseStageProgress(document.data(), stage));
-  }
+  const progress = await progressRef.get();
   const selectedProgress = progress.exists
     ? parseStageProgress(progress.data(), selectedStage)
     : initialReadOnlyStageProgress(selectedStage);
-  progressByStage.set(selectedStage, selectedProgress);
 
   return stageChecklistDto(
     selectedStage,
     selectedProgress,
     access,
     internship.status === "active" && selectedStage === internship.currentStage,
-    internshipSkillProgress(progressByStage),
   );
 }
 
