@@ -13,6 +13,7 @@
     }
   ],
   "emulators": {
+    "singleProjectMode": false,
     "auth": {
       "port": 9099
     },
@@ -23,5 +24,16 @@
       "enabled": true,
       "port": 4000
     }
+  },
+  "apphosting": {
+    "backendId": "internship-dashboard",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions"
+    ]
   }
 }

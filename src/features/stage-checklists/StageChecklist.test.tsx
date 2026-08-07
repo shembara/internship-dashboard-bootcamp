@@ -24,6 +24,8 @@ function checklist(): StageChecklistDto {
       type: "required" as const,
       status: "todo" as const,
       completed: false,
+      skills: ["technical"] as const,
+      weight: 1,
       canComplete: true,
       canDelete: false,
     },
@@ -33,6 +35,8 @@ function checklist(): StageChecklistDto {
       type: "recommended" as const,
       status: "inProgress" as const,
       completed: false,
+      skills: ["planning"] as const,
+      weight: 1,
       canComplete: true,
       canDelete: true,
     },
@@ -42,6 +46,8 @@ function checklist(): StageChecklistDto {
       type: "required" as const,
       status: "done" as const,
       completed: true,
+      skills: ["technical", "codeQuality"] as const,
+      weight: 1,
       canComplete: true,
       canDelete: false,
     },
@@ -60,6 +66,7 @@ function checklist(): StageChecklistDto {
     canAddTasks: true,
     reviewStatus: "underReview",
     canViewAllStages: false,
+    skillProgress: [],
   };
 }
 
@@ -107,9 +114,7 @@ describe("StageChecklist", () => {
     expect(screen.getByText("Under mentor review")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Request changes" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Add task" })).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Confirm mentor review" }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Confirm mentor review" })).toBeNull();
   });
 
   it("deletes a custom task", async () => {
@@ -124,6 +129,40 @@ describe("StageChecklist", () => {
       expect.objectContaining({
         method: "DELETE",
         body: JSON.stringify({ stage: "onboarding", itemKey: "notes" }),
+      }),
+    );
+  });
+
+  it("posts skills and weight when adding a task", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
+    );
+    const user = userEvent.setup();
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    await user.type(screen.getByLabelText("Task name"), "Ship skill-linked task");
+    await user.selectOptions(screen.getByLabelText("Primary skill"), "communication");
+    await user.selectOptions(
+      screen.getByLabelText("Secondary skill (optional)"),
+      "ownership",
+    );
+    await user.clear(screen.getByLabelText("Weight"));
+    await user.type(screen.getByLabelText("Weight"), "3");
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          stage: "onboarding",
+          label: "Ship skill-linked task",
+          type: "required",
+          skills: ["communication", "ownership"],
+          weight: 3,
+        }),
       }),
     );
   });

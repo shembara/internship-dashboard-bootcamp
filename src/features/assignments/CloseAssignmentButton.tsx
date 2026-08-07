@@ -4,18 +4,25 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
 
 export function CloseAssignmentButton({
   internshipId,
   assignmentId,
   requiresConfirmation = false,
   onSuccess,
+  variant = "default",
 }: {
   internshipId: string;
   assignmentId: string;
   requiresConfirmation?: boolean;
   onSuccess?: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [pending, setPending] = useState(false);
   function close() {
@@ -48,6 +55,7 @@ export function CloseAssignmentButton({
       type="button"
       onClick={close}
       disabled={pending}
+      className={styles.outlineButton}
     >
       {pending ? "Ending…" : "End assignment"}
     </Button>

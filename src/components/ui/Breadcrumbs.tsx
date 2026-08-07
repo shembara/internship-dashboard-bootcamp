@@ -1,20 +1,41 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 export type BreadcrumbItem = {
   label: string;
   href?: string;
 };
 
-export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
+export function Breadcrumbs({
+  items,
+  className,
+  variant,
+}: {
+  items: BreadcrumbItem[];
+  className?: string;
+  variant?: "dark";
+}) {
+  const dark = variant === "dark";
   return (
     <nav aria-label="Breadcrumb">
-      <ol className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+      <ol
+        className={cn(
+          "flex flex-wrap items-center gap-1 text-sm text-muted-foreground",
+          className,
+        )}
+      >
         <li>
           <Link
             href="/"
             aria-label="Home"
-            className="flex rounded-md p-1 hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]"
+            className={cn(
+              "flex rounded-md p-1",
+              dark
+                ? "hover:bg-white/5 hover:text-white"
+                : "hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
+            )}
           >
             <Home className="size-4" />
           </Link>
@@ -25,7 +46,12 @@ export function Breadcrumbs({ items }: { items: BreadcrumbItem[] }) {
             {item.href ? (
               <Link
                 href={item.href}
-                className="rounded-md px-1 py-1 hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]"
+                className={cn(
+                  "rounded-md px-1 py-1",
+                  dark
+                    ? "hover:bg-white/5 hover:text-white"
+                    : "hover:bg-[var(--brand-soft)] hover:text-[var(--brand-strong)]",
+                )}
               >
                 {item.label}
               </Link>

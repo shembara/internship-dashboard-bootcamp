@@ -6,7 +6,6 @@ import { z } from "zod";
 import { achievementCategories, type AchievementDto } from "@/lib/achievements/types";
 import { internshipStages, type InternshipStage } from "@/lib/internships/types";
 import { progressHubTimeZone } from "@/lib/progress-hub/week";
-import { isCurrent } from "@/server/assignments/domain";
 import {
   isCurrentManagerAssignment,
   isOngoingOrScheduled,
@@ -70,7 +69,7 @@ function assertAchievementBusinessRules(
   if (
     input.linkedStage &&
     internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
-      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
+    internshipStages.findIndex((stage) => stage.value === internship.currentStage)
   )
     throw new Error("Achievement cannot be linked to a future stage.");
 }
@@ -120,6 +119,59 @@ async function access(
     internship.internId === userId;
   if (!intern && !mentor && !managerAccess)
     throw new AuthorizationError("ROLE_REQUIRED", "You cannot access this internship.");
+  return { internship, intern, mentor, manager: managerAccess };
+}
+
+async function accessInTransaction(
+  transaction: FirebaseFirestore.Transaction,
+  internshipRef: FirebaseFirestore.DocumentReference,
+  userId: string,
+) {
+  const [internshipSnapshot, user, manager, teammates] = await Promise.all([
+    transaction.get(internshipRef),
+    transaction.get(adminFirestore.collection("users").doc(userId)),
+    transaction.get(internshipRef.collection("managerAssignments").doc(userId)),
+    transaction.get(
+      internshipRef.collection("teammateAssignments").where("teammateUserId", "==", userId),
+    ),
+  ]);
+
+  if (!internshipSnapshot.exists || !user.exists)
+    throw new AuthorizationError("ROLE_REQUIRED", "You cannot access this internship.");
+
+  const internship = parseInternshipDocument(internshipSnapshot.data());
+  const actor = appUserSchema.parse(user.data());
+
+  const mentor =
+    actor.active &&
+    actor.roles.includes("teammate") &&
+    teammates.docs.some((document) => {
+      const value = document.data() as {
+        responsibilities?: string[];
+        startsAt?: Timestamp;
+        endsAt?: Timestamp;
+      };
+      return (
+        value.startsAt &&
+        value.responsibilities?.includes("mentor") &&
+        isOngoingOrScheduled({ startsAt: value.startsAt, endsAt: value.endsAt })
+      );
+    });
+
+  const managerAccess =
+    actor.active &&
+    actor.roles.includes("manager") &&
+    manager.exists &&
+    isCurrentManagerAssignment(
+      manager.data() as { startsAt?: Timestamp; endsAt?: Timestamp },
+    );
+
+  const intern =
+    actor.active && actor.roles.includes("intern") && internship.internId === userId;
+
+  if (!intern && !mentor && !managerAccess)
+    throw new AuthorizationError("ROLE_REQUIRED", "You cannot access this internship.");
+
   return { internship, intern, mentor, manager: managerAccess };
 }
 
@@ -204,71 +256,13 @@ export async function createAchievement(
 ) {
   const ref = adminFirestore.collection("internships").doc(internshipId);
   await adminFirestore.runTransaction(async (transaction) => {
-    const [internshipSnapshot, user, manager, teammates] = await Promise.all([
-      transaction.get(ref),
-      transaction.get(adminFirestore.collection("users").doc(userId)),
-      transaction.get(ref.collection("managerAssignments").doc(userId)),
-      transaction.get(
-        ref.collection("teammateAssignments").where("teammateUserId", "==", userId),
-      ),
-    ]);
-    if (!internshipSnapshot.exists || !user.exists)
-      throw new AuthorizationError(
-        "ROLE_REQUIRED",
-        "You cannot access this internship.",
-      );
-    const internship = parseInternshipDocument(internshipSnapshot.data());
-    const actor = appUserSchema.parse(user.data());
-    const mentor =
-      actor.active &&
-      actor.roles.includes("teammate") &&
-      teammates.docs.some((document) => {
-        const value = document.data() as {
-          responsibilities?: string[];
-          startsAt?: Timestamp;
-          endsAt?: Timestamp;
-        };
-        return (
-          value.startsAt &&
-          value.responsibilities?.includes("mentor") &&
-          isOngoingOrScheduled({ startsAt: value.startsAt, endsAt: value.endsAt })
-        );
-      });
-    const managerAccess =
-      actor.active &&
-      actor.roles.includes("manager") &&
-      manager.exists &&
-      isCurrentManagerAssignment(
-        manager.data() as { startsAt?: Timestamp; endsAt?: Timestamp },
-      );
-    const intern =
-      actor.active && actor.roles.includes("intern") && internship.internId === userId;
-    if (!intern && !mentor && !managerAccess)
-      throw new AuthorizationError(
-        "ROLE_REQUIRED",
-        "You cannot access this internship.",
-      );
-    if (internship.status !== "active")
+    const viewer = await accessInTransaction(transaction, ref, userId);
+
+    if (viewer.internship.status !== "active")
       throw new Error("Achievements can only be changed for active internships.");
-    if (input.achievedOn < internship.startsAt.toDate().toISOString().slice(0, 10))
-      throw new Error("Achievement date cannot be before the internship start date.");
-    if (
-      input.achievedOn >
-      new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Uzhgorod",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(new Date())
-    )
-      throw new Error("Achievement date cannot be in the future.");
-    if (
-      input.linkedStage &&
-      internshipStages.findIndex((stage) => stage.value === input.linkedStage) >
-      internshipStages.findIndex((stage) => stage.value === internship.currentStage)
-    )
-      throw new Error("Achievement cannot be linked to a future stage.");
-    assertAchievementBusinessRules(internship, input);
+
+    assertAchievementBusinessRules(viewer.internship, input);
+
     transaction.create(ref.collection("achievements").doc(), {
       ...input,
       createdBy: userId,
@@ -286,22 +280,30 @@ export async function updateAchievement(
   input: z.infer<typeof achievementInputSchema>,
 ) {
   const ref = adminFirestore.collection("internships").doc(internshipId);
-  const viewer = await access(ref, userId);
-  if (viewer.internship.status !== "active")
-    throw new Error("Achievements can only be changed for active internships.");
   await adminFirestore.runTransaction(async (transaction) => {
+    const viewer = await accessInTransaction(transaction, ref, userId);
+
+    if (viewer.internship.status !== "active")
+      throw new Error("Achievements can only be changed for active internships.");
+
     const achievementRef = ref.collection("achievements").doc(achievementId);
     const existing = await transaction.get(achievementRef);
+
     if (!existing.exists) throw new Error("Achievement not found.");
+
     const achievement = achievementSchema.parse(existing.data());
+
     if (achievement.archivedAt)
       throw new Error("Archived achievements cannot be edited.");
+
     if (!viewer.manager && achievement.createdBy !== userId)
       throw new AuthorizationError(
         "ROLE_REQUIRED",
         "Only the author or a manager can edit this achievement.",
       );
+
     assertAchievementBusinessRules(viewer.internship, input);
+
     transaction.update(achievementRef, {
       ...input,
       updatedBy: userId,
@@ -317,24 +319,31 @@ export async function archiveAchievement(
   restore = false,
 ) {
   const ref = adminFirestore.collection("internships").doc(internshipId);
-  const viewer = await access(ref, userId);
-  if (viewer.internship.status !== "active")
-    throw new Error("Achievements can only be changed for active internships.");
   await adminFirestore.runTransaction(async (transaction) => {
+    const viewer = await accessInTransaction(transaction, ref, userId);
+
+    if (viewer.internship.status !== "active")
+      throw new Error("Achievements can only be changed for active internships.");
+
     const achievementRef = ref.collection("achievements").doc(achievementId);
     const existing = await transaction.get(achievementRef);
+
     if (!existing.exists) throw new Error("Achievement not found.");
+
     const achievement = achievementSchema.parse(existing.data());
+
     if (restore && !viewer.manager)
       throw new AuthorizationError(
         "ROLE_REQUIRED",
         "Only a manager can restore an achievement.",
       );
+
     if (!restore && !viewer.manager && achievement.createdBy !== userId)
       throw new AuthorizationError(
         "ROLE_REQUIRED",
         "Only the author or a manager can archive this achievement.",
       );
+
     transaction.update(
       achievementRef,
       restore

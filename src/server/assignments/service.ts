@@ -198,30 +198,41 @@ export async function listManagedInternships(
     .where("userId", "==", managerId)
     .get();
 
-  const results = await Promise.all(
-    assignments.docs.map(async (assignment) => {
-      const internship = await assignment.ref.parent.parent?.get();
-      if (!internship?.exists) return undefined;
-      const data = parseInternshipDocument(internship.data());
-      const intern = await adminFirestore.collection("users").doc(data.internId).get();
-      return {
-        id: internship.id,
-        status: data.status,
-        currentStage: data.currentStage,
-        internName: intern.exists
-          ? (intern.data()?.displayName as string)
-          : "Unknown intern",
-        progressSummary: await getManagerProgressSummary(
-          internship.ref,
-          data,
-          managerId,
-        ),
-      };
-    }),
+  if (assignments.empty) return [];
+
+  // Batch 1: Get all internship references
+  const internshipRefs = [
+    ...new Set(
+      assignments.docs.flatMap((assignment) => {
+        const ref = assignment.ref.parent.parent;
+        return ref ? [ref] : [];
+      }),
+    ),
+  ];
+
+  const internshipDocs = await adminFirestore.getAll(...internshipRefs);
+  const activeInternships = internshipDocs.flatMap((doc) => {
+    if (!doc.exists) return [];
+    return [{ ref: doc.ref, data: parseInternshipDocument(doc.data()) }];
+  });
+
+  // Batch 2: Get all intern user documents at once
+  const internIds = [...new Set(activeInternships.map((i) => i.data.internId))];
+  const internDocs = internIds.length
+    ? await adminFirestore.getAll(...internIds.map((id) => adminFirestore.collection("users").doc(id)))
+    : [];
+  const internNames = new Map(
+    internDocs.map((doc) => [doc.id, (doc.data()?.displayName as string) ?? "Unknown intern"]),
   );
 
-  return results.filter((result): result is NonNullable<typeof result> =>
-    Boolean(result),
+  return Promise.all(
+    activeInternships.map(async ({ ref, data }) => ({
+      id: ref.id,
+      status: data.status,
+      currentStage: data.currentStage,
+      internName: internNames.get(data.internId) ?? "Unknown intern",
+      progressSummary: await getManagerProgressSummary(ref, data, managerId),
+    })),
   );
 }
 
@@ -232,31 +243,47 @@ export async function listTeammateInternships(
     .collectionGroup("teammateAssignments")
     .where("teammateUserId", "==", teammateUserId)
     .get();
-  const internshipRefs = new Map(
-    assignments.docs.flatMap((assignment) => {
-      const internshipRef = assignment.ref.parent.parent;
-      return internshipRef ? [[internshipRef.id, internshipRef] as const] : [];
-    }),
-  );
-  const results = await Promise.all(
-    [...internshipRefs.values()].map(async (internshipRef) => {
-      const internship = await internshipRef.get();
-      if (!internship.exists) return undefined;
-      const data = parseInternshipDocument(internship.data());
-      const intern = await adminFirestore.collection("users").doc(data.internId).get();
-      return {
-        id: internship.id,
-        status: data.status,
-        currentStage: data.currentStage,
-        internName: intern.exists
-          ? (intern.data()?.displayName as string)
-          : "Unknown intern",
-      };
-    }),
+
+  const internshipRefs = [
+    ...new Set(
+      assignments.docs.flatMap((assignment) => {
+        const ref = assignment.ref.parent.parent;
+        return ref ? [ref] : [];
+      }),
+    ),
+  ];
+
+  if (!internshipRefs.length) return [];
+
+  // Batch 1: Fetch all parent internships in one call
+  const internshipDocs = await adminFirestore.getAll(...internshipRefs);
+  const parsedInternships = internshipDocs.flatMap((doc) => {
+    if (!doc.exists) return [];
+    return [{ id: doc.id, data: parseInternshipDocument(doc.data()) }];
+  });
+
+  // Batch 2: Fetch all intern user documents in one call
+  const internUserRefs = [
+    ...new Set(
+      parsedInternships.map((item) =>
+        adminFirestore.collection("users").doc(item.data.internId),
+      ),
+    ),
+  ];
+  const internDocs = internUserRefs.length
+    ? await adminFirestore.getAll(...internUserRefs)
+    : [];
+  const internNames = new Map(
+    internDocs.map((doc) => [doc.id, doc.data()?.displayName as string | undefined]),
   );
 
-  return results
-    .filter((result): result is NonNullable<typeof result> => Boolean(result))
+  return parsedInternships
+    .map(({ id, data }) => ({
+      id,
+      status: data.status,
+      currentStage: data.currentStage,
+      internName: internNames.get(data.internId) ?? "Unknown intern",
+    }))
     .sort((a, b) => a.internName.localeCompare(b.internName));
 }
 
@@ -366,30 +393,30 @@ export async function getManagedInternshipDetail(
     .collection("users")
     .doc(internshipData.internId)
     .get();
-  const teamIds = new Set<string>();
-  placements.docs.forEach((document) => teamIds.add(document.data().teamId as string));
-  assignments.docs.forEach((document) => teamIds.add(document.data().teamId as string));
+
+  const teamIds = [
+    ...new Set([
+      ...placements.docs.map((doc) => doc.data().teamId as string),
+      ...assignments.docs.map((doc) => doc.data().teamId as string),
+    ]),
+  ].filter(Boolean);
+
+  const teamRefs = teamIds.map((id) => adminFirestore.collection("teams").doc(id));
+  const teamDocs = teamRefs.length ? await adminFirestore.getAll(...teamRefs) : [];
   const teams = new Map(
-    (
-      await Promise.all(
-        [...teamIds].map(async (id) => {
-          const document = await adminFirestore.collection("teams").doc(id).get();
-          return [id, document.data()?.title as string | undefined] as const;
-        }),
-      )
-    ).filter((entry): entry is [string, string] => Boolean(entry[1])),
+    teamDocs.map((doc) => [doc.id, doc.data()?.title as string | undefined]),
   );
-  const teammateIds = new Set(
-    assignments.docs.map((document) => document.data().teammateUserId as string),
-  );
+
+  const teammateIds = [
+    ...new Set(assignments.docs.map((doc) => doc.data().teammateUserId as string)),
+  ].filter(Boolean);
+
+  const teammateRefs = teammateIds.map((id) => adminFirestore.collection("users").doc(id));
+  const teammateDocs = teammateRefs.length ? await adminFirestore.getAll(...teammateRefs) : [];
   const teammateNames = new Map(
-    await Promise.all(
-      [...teammateIds].map(async (id) => {
-        const document = await adminFirestore.collection("users").doc(id).get();
-        return [id, document.data()?.displayName as string | undefined] as const;
-      }),
-    ),
+    teammateDocs.map((doc) => [doc.id, doc.data()?.displayName as string | undefined]),
   );
+
   const checklist = await getStageChecklist(internshipRef, internshipData, managerId);
   const progressHub = await getManagerProgressHub(
     internshipRef,

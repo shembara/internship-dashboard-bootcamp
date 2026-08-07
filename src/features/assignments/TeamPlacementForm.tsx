@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import type { TeamOption } from "@/lib/assignments/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 export function TeamPlacementForm({
   internshipId,
   onSuccess,
+  variant = "default",
 }: {
   internshipId: string;
   onSuccess?: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [teamName, setTeamName] = useState("");
@@ -53,7 +61,7 @@ export function TeamPlacementForm({
   }
   return (
     <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Team
         <input
           list="placement-team-options"
@@ -61,7 +69,7 @@ export function TeamPlacementForm({
           value={teamName}
           onChange={(event) => setTeamName(event.target.value)}
           placeholder="Select or enter Team"
-          className="h-9 rounded-lg border bg-background px-3"
+          className={styles.input}
         />
         <datalist id="placement-team-options">
           {teams.map((team) => (
@@ -69,7 +77,7 @@ export function TeamPlacementForm({
           ))}
         </datalist>
       </label>
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Start date
         <input
           name="startsAt"
@@ -77,14 +85,14 @@ export function TeamPlacementForm({
           required
           value={startsAt}
           onChange={(event) => setStartsAt(event.target.value)}
-          className="h-9 rounded-lg border bg-background px-3"
+          className={styles.input}
         />
       </label>
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className={styles.primaryButton}>
         {pending ? "Saving…" : "Save Team"}
       </Button>
       {error ? (
-        <p className="basis-full text-sm text-destructive" role="alert">
+        <p className={cn("basis-full text-sm", styles.error)} role="alert">
           {error}
         </p>
       ) : null}

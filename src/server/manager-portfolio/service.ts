@@ -216,7 +216,7 @@ function latestActivity(item: {
   return values.sort((a, b) => b.localeCompare(a))[0];
 }
 
-function deriveAttentionSignals(
+export function deriveAttentionSignals(
   item: Omit<ManagerPortfolioItemDto, "attentionSignals">,
   now = Timestamp.now(),
 ) {
@@ -233,276 +233,360 @@ function deriveAttentionSignals(
   }
   if (
     isOperationalInternshipStatus(item.status) &&
-    !item.currentStageChecklist.isStageCompleted &&
-    item.currentStageChecklist.readyToComplete
+    !item.currentStageChecklist?.isStageCompleted &&
+    item.currentStageChecklist?.readyToComplete
   ) {
     signals.push(attentionSignal("stageReadyToComplete"));
   }
   if (item.status === "paused") signals.push(attentionSignal("internshipPaused"));
   if (
     item.currentStage === "finalReview" &&
-    item.currentStageChecklist.isStageCompleted &&
-    item.status !== "completed" &&
-    item.status !== "cancelled"
+    item.currentStageChecklist?.isStageCompleted &&
+    isOperationalInternshipStatus(item.status)
   ) {
     signals.push(attentionSignal("finalReviewCompletedAwaitingDecision"));
   }
-  if (!item.mentorUserIds.length) signals.push(attentionSignal("noCurrentMentor"));
+  if (isOperationalInternshipStatus(item.status) && !item.mentorUserIds.length) {
+    signals.push(attentionSignal("noCurrentMentor"));
+  }
   if (item.endsAt && isOperationalInternshipStatus(item.status)) {
-    const days = calendarDayDistance(
-      dateInApplicationTimeZone(now),
-      dateInApplicationTimeZone(Timestamp.fromDate(new Date(item.endsAt))),
-    );
-    if (days >= 0 && days <= 14) {
+    const today = dateInApplicationTimeZone(now);
+    const distance = calendarDayDistance(today, item.endsAt.slice(0, 10));
+    if (distance >= 0 && distance <= 14) {
       signals.push(attentionSignal("endingSoon", { date: item.endsAt }));
     }
   }
   return signals;
 }
 
-async function buildPortfolioItem(
-  internshipRef: FirebaseFirestore.DocumentReference,
+export async function getManagerPortfolio(
   managerId: string,
-): Promise<ManagerPortfolioItemDto> {
-  const internshipSnapshot = await internshipRef.get();
-  if (!internshipSnapshot.exists) throw new Error("Internship not found.");
-  const internship = parseInternshipDocument(internshipSnapshot.data());
-  const [internSnapshot, placements, teammateAssignments] = await Promise.all([
-    adminFirestore.collection("users").doc(internship.internId).get(),
-    internshipRef.collection("teamPlacements").get(),
-    internshipRef.collection("teammateAssignments").get(),
-  ]);
-
-  // Safe fallback if user record is missing in Firestore
-  const intern = internSnapshot.exists
-    ? appUserSchema.parse(internSnapshot.data())
-    : { displayName: "Unknown Intern", email: "unknown@example.com" };
-
-  const assignmentData = teammateAssignments.docs.map((document) => ({
-    id: document.id,
-    ...teammateAssignmentSchema.parse(document.data()),
-  }));
-  const currentMentors = assignmentData.filter(
-    (assignment) =>
-      assignment.responsibilities.includes("mentor") &&
-      isOngoingOrScheduled(assignment as DateRange),
-  );
-  const [users, teams] = await Promise.all([
-    getUserSummaries(currentMentors.map((assignment) => assignment.teammateUserId)),
-    Promise.all(
-      placements.docs.map(async (document) => {
-        const placement = placementSchema.parse(document.data());
-        const team = await adminFirestore
-          .collection("teams")
-          .doc(placement.teamId)
-          .get();
-        return [
-          document.id,
-          placement,
-          team.data()?.title as string | undefined,
-        ] as const;
-      }),
-    ),
-  ]);
-  const currentPlacement = teams
-    .filter(([, placement]) => isOngoingOrScheduled(placement as DateRange))
-    .sort((a, b) => b[1].startsAt.toMillis() - a[1].startsAt.toMillis())[0];
-  const checklist = await getStageChecklist(internshipRef, internship, managerId);
-  const progressHub = await getManagerProgressHub(
-    internshipRef,
-    internship,
-    managerId,
-    checklist,
-  );
-  const base = {
-    id: internshipRef.id,
-    intern: {
-      id: internship.internId,
-      displayName: intern.displayName,
-      email: intern.email,
-    },
-    status: internship.status,
-    currentStage: internship.currentStage,
-    startsAt: timestamp(internship.startsAt)!,
-    endsAt: timestamp(internship.endsAt),
-    currentStageChecklist: {
-      requiredCompletedCount: checklist.requiredCompletedCount,
-      requiredTotalCount: checklist.requiredTotalCount,
-      readyToComplete: checklist.readyToComplete,
-      isStageCompleted: checklist.isStageCompleted,
-    },
-    mentorNames: currentMentors.map(
-      (assignment) =>
-        users.get(assignment.teammateUserId)?.displayName ?? "Unknown mentor",
-    ),
-    mentorUserIds: currentMentors.map((assignment) => assignment.teammateUserId),
-    currentPlacement: currentPlacement
-      ? {
-        teamId: currentPlacement[1].teamId,
-        teamTitle: currentPlacement[2] ?? "Unknown team",
-      }
-      : undefined,
-    reflectionState: progressHub.summary.reflectionState,
-    mentorCheckInState: progressHub.summary.mentorCheckInState,
-    openActionItems: progressHub.summary.openActionItems,
-    overdueActionItems: progressHub.summary.overdueActionItems,
-    nextDueAction: progressHub.summary.nextDueAction,
-    unresolvedAgendaItems: progressHub.summary.unresolvedAgendaItems,
-    latestSharedActivityAt: latestActivity({ progressHub }),
-  } satisfies Omit<ManagerPortfolioItemDto, "attentionSignals">;
-  return { ...base, attentionSignals: deriveAttentionSignals(base) };
-}
-
-async function currentManagedInternshipRefs(managerId: string) {
-  const assignments = await adminFirestore
+  rawQuery: unknown,
+): Promise<ManagerPortfolioDto> {
+  recordFirestoreReadPath("manager-portfolio.get-portfolio");
+  const query = normalizeManagerPortfolioQuery(rawQuery);
+  const managerAssignments = await adminFirestore
     .collectionGroup("managerAssignments")
     .where("userId", "==", managerId)
     .get();
-  return assignments.docs.flatMap((assignment) => {
-    if (!currentManagerAssignment(assignment.data())) return [];
-    const internshipRef = assignment.ref.parent.parent;
-    return internshipRef ? [internshipRef] : [];
-  });
-}
 
-export async function getManagerPortfolio(
-  managerId: string,
-  queryInput: unknown,
-): Promise<ManagerPortfolioDto> {
-  recordFirestoreReadPath("manager-portfolio.list");
-  const query = normalizeManagerPortfolioQuery(queryInput);
-  const refs = await currentManagedInternshipRefs(managerId);
-  const allItems = await mapWithConcurrency(refs, 6, (ref) =>
-    buildPortfolioItem(ref, managerId),
+  const internshipRefs = [
+    ...new Set(
+      managerAssignments.docs.flatMap((doc) => {
+        const parent = doc.ref.parent.parent;
+        return parent && currentManagerAssignment(doc.data()) ? [parent] : [];
+      }),
+    ),
+  ];
+
+  if (!internshipRefs.length) {
+    return {
+      items: [],
+      metrics: portfolioMetrics([]),
+      total: 0,
+      page: 1,
+      pageSize: query.pageSize,
+      totalPages: 0,
+      mentorOptions: [],
+      query,
+    };
+  }
+
+  const internshipDocs = await adminFirestore.getAll(...internshipRefs);
+  const validInternships = internshipDocs.flatMap((doc) => {
+    if (!doc.exists) return [];
+    return [{ ref: doc.ref, data: parseInternshipDocument(doc.data()) }];
+  });
+
+  const allUserIds = new Set<string>();
+  validInternships.forEach((item) => allUserIds.add(item.data.internId));
+
+  const itemsWithDetails = await mapWithConcurrency(
+    validInternships,
+    10,
+    async ({ ref, data }) => {
+      const [placementsSnap, teammateAssignmentsSnap] = await Promise.all([
+        ref.collection("teamPlacements").get(),
+        ref.collection("teammateAssignments").get(),
+      ]);
+
+      const placements = placementsSnap.docs.map((d) => ({
+        id: d.id,
+        ...placementSchema.parse(d.data()),
+      }));
+
+      const teammateAssignments = teammateAssignmentsSnap.docs.map((d) => ({
+        id: d.id,
+        ...teammateAssignmentSchema.parse(d.data()),
+      }));
+
+      const currentPlacement = placements.find((p) => isCurrent(p)) ?? placements[0];
+
+      const currentMentors = teammateAssignments.filter(
+        (t) => t.responsibilities.includes("mentor") && isCurrent(t),
+      );
+
+      currentMentors.forEach((m) => allUserIds.add(m.teammateUserId));
+
+      const checklist = await getStageChecklist(ref, data, managerId);
+      const progressHub = await getManagerProgressHub(
+        ref,
+        data,
+        managerId,
+        checklist,
+      );
+
+      const latestSharedActivityAt = latestActivity({ progressHub });
+
+      const baseItem = {
+        id: ref.id,
+        intern: {
+          id: data.internId,
+          displayName: "",
+          email: "",
+        },
+        status: data.status,
+        currentStage: data.currentStage,
+        startsAt: timestamp(data.startsAt)!,
+        endsAt: timestamp(data.endsAt),
+        currentStageChecklist: {
+          requiredCompletedCount: checklist.requiredCompletedCount,
+          requiredTotalCount: checklist.requiredTotalCount,
+          readyToComplete: checklist.readyToComplete,
+          isStageCompleted: checklist.isStageCompleted,
+        },
+        mentorNames: [],
+        mentorUserIds: currentMentors.map((m) => m.teammateUserId),
+        currentPlacement: currentPlacement
+          ? { teamId: currentPlacement.teamId, teamTitle: "" }
+          : undefined,
+        reflectionState: progressHub.summary.reflectionState,
+        mentorCheckInState: progressHub.summary.mentorCheckInState,
+        openActionItems: progressHub.summary.openActionItems,
+        overdueActionItems: progressHub.summary.overdueActionItems,
+        nextDueAction: progressHub.summary.nextDueAction,
+        unresolvedAgendaItems: progressHub.summary.unresolvedAgendaItems,
+        latestSharedActivityAt,
+      };
+
+      const attentionSignals = deriveAttentionSignals(baseItem);
+
+      return {
+        ...baseItem,
+        attentionSignals,
+        currentPlacementTeamId: currentPlacement?.teamId,
+      };
+    },
   );
-  const filtered = filterAndSortPortfolio(allItems, query);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / query.pageSize));
-  const page = Math.min(query.page, totalPages);
-  const start = (page - 1) * query.pageSize;
+
+  const teamIds = [
+    ...new Set(
+      itemsWithDetails
+        .map((i) => i.currentPlacementTeamId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [usersMap, teamDocs] = await Promise.all([
+    getUserSummaries(allUserIds),
+    teamIds.length
+      ? adminFirestore.getAll(
+        ...teamIds.map((id) => adminFirestore.collection("teams").doc(id)),
+      )
+      : [],
+  ]);
+
+  const teamsMap = new Map(
+    teamDocs.flatMap((doc) =>
+      doc.exists ? [[doc.id, doc.data()?.title as string] as const] : [],
+    ),
+  );
+
+  const fullItems: ManagerPortfolioItemDto[] = itemsWithDetails.map((item) => {
+    const internUser = usersMap.get(item.intern.id);
+    const mentorNames = item.mentorUserIds.flatMap((id) => {
+      const u = usersMap.get(id);
+      return u ? [u.displayName] : [];
+    });
+
+    return {
+      id: item.id,
+      intern: {
+        id: item.intern.id,
+        displayName: internUser?.displayName ?? "Unknown intern",
+        email: internUser?.email ?? "",
+      },
+      status: item.status,
+      currentStage: item.currentStage,
+      startsAt: item.startsAt,
+      endsAt: item.endsAt,
+      currentStageChecklist: item.currentStageChecklist,
+      mentorNames,
+      mentorUserIds: item.mentorUserIds,
+      currentPlacement: item.currentPlacementTeamId
+        ? {
+          teamId: item.currentPlacementTeamId,
+          teamTitle: teamsMap.get(item.currentPlacementTeamId) ?? "Unknown Team",
+        }
+        : undefined,
+      reflectionState: item.reflectionState,
+      mentorCheckInState: item.mentorCheckInState,
+      openActionItems: item.openActionItems,
+      overdueActionItems: item.overdueActionItems,
+      nextDueAction: item.nextDueAction,
+      unresolvedAgendaItems: item.unresolvedAgendaItems,
+      latestSharedActivityAt: item.latestSharedActivityAt,
+      attentionSignals: item.attentionSignals,
+    };
+  });
+
   const mentorOptions = [
     ...new Map(
-      allItems.flatMap((item) =>
-        item.mentorUserIds.map((id, index) => [
-          id,
-          { id, displayName: item.mentorNames[index] },
-        ]),
+      fullItems.flatMap((item) =>
+        item.mentorUserIds.flatMap((id) => {
+          const user = usersMap.get(id);
+          return user ? [[id, { id, displayName: user.displayName }] as const] : [];
+        }),
       ),
     ).values(),
   ].sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+  const metrics = portfolioMetrics(fullItems);
+  const filteredAndSorted = filterAndSortPortfolio(fullItems, query);
+  const total = filteredAndSorted.length;
+  const totalPages = Math.ceil(total / query.pageSize) || 1;
+  const page = Math.min(query.page, totalPages);
+  const startIndex = (page - 1) * query.pageSize;
+  const paginatedItems = filteredAndSorted.slice(
+    startIndex,
+    startIndex + query.pageSize,
+  );
+
   return {
-    items: filtered.slice(start, start + query.pageSize),
-    metrics: portfolioMetrics(allItems),
-    total: filtered.length,
+    items: paginatedItems,
+    metrics,
+    total,
     page,
     pageSize: query.pageSize,
     totalPages,
     mentorOptions,
-    query: { ...query, page },
+    query,
   };
-}
-
-async function assertCurrentManagerInTransaction(
-  transaction: FirebaseFirestore.Transaction,
-  internshipRef: FirebaseFirestore.DocumentReference,
-  managerId: string,
-) {
-  return readManagerMutationAccess(transaction, internshipRef, managerId);
-}
-
-function assertOperationalInternship(internship: { status: InternshipStatus }) {
-  if (!isOperationalInternshipStatus(internship.status)) {
-    throw new Error("Completed and cancelled internships are read-only.");
-  }
 }
 
 export async function getManagerPortfolioDetail(
   internshipId: string,
   managerId: string,
 ): Promise<ManagerPortfolioDetailDto> {
-  recordFirestoreReadPath("manager-portfolio.detail");
-  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
-  const [internshipSnapshot, userSnapshot, managerAssignment] = await Promise.all([
-    internshipRef.get(),
+  const ref = adminFirestore.collection("internships").doc(internshipId);
+  const [internshipSnap, managerSnap, userSnap] = await Promise.all([
+    ref.get(),
+    ref.collection("managerAssignments").doc(managerId).get(),
     adminFirestore.collection("users").doc(managerId).get(),
-    internshipRef.collection("managerAssignments").doc(managerId).get(),
-  ]);
-  const currentInternship = assertManagerAccessSnapshots(
-    internshipSnapshot,
-    userSnapshot,
-    managerAssignment,
-    managerId,
-  );
-  const internship = currentInternship;
-  const [checklist, progressHub, managers, placements, assignments] = await Promise.all(
-    [
-      getStageChecklist(internshipRef, internship, managerId),
-      getManagerProgressHub(internshipRef, internship, managerId),
-      internshipRef.collection("managerAssignments").get(),
-      internshipRef.collection("teamPlacements").orderBy("startsAt", "desc").get(),
-      internshipRef.collection("teammateAssignments").orderBy("startsAt", "desc").get(),
-    ],
-  );
-  const managerData = managers.docs.map((document) => ({
-    id: document.id,
-    ...managerAssignmentSchema.parse(document.data()),
-  }));
-  const placementData = placements.docs.map((document) => ({
-    id: document.id,
-    ...placementSchema.parse(document.data()),
-  }));
-  const teammateData = assignments.docs.map((document) => ({
-    id: document.id,
-    ...teammateAssignmentSchema.parse(document.data()),
-  }));
-  const users = await getUserSummaries([
-    internship.internId,
-    ...managerData.map((assignment) => assignment.userId),
-    ...teammateData.map((assignment) => assignment.teammateUserId),
   ]);
 
-  // Safe fallback for detail view if intern user missing
-  const intern = users.get(internship.internId) ?? {
-    displayName: "Unknown Intern",
-    email: "unknown@example.com",
-  };
+  const internship = assertManagerAccessSnapshots(
+    internshipSnap,
+    userSnap,
+    managerSnap,
+    managerId,
+  );
+
+  const [
+    placementsSnap,
+    teammateAssignmentsSnap,
+    managerAssignmentsSnap,
+    statusHistorySnap,
+    eligibleManagers,
+    eligibleTeammates,
+  ] = await Promise.all([
+    ref.collection("teamPlacements").orderBy("startsAt", "desc").get(),
+    ref.collection("teammateAssignments").orderBy("startsAt", "desc").get(),
+    ref.collection("managerAssignments").get(),
+    ref.collection("statusHistory").orderBy("changedAt", "desc").get(),
+    adminFirestore
+      .collection("users")
+      .where("active", "==", true)
+      .where("roles", "array-contains", "manager")
+      .get(),
+    adminFirestore
+      .collection("users")
+      .where("active", "==", true)
+      .where("roles", "array-contains", "teammate")
+      .get(),
+  ]);
+
+  const placements = placementsSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...placementSchema.parse(doc.data()),
+  }));
+
+  const teammateAssignments = teammateAssignmentsSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...teammateAssignmentSchema.parse(doc.data()),
+  }));
+
+  const managerAssignments = managerAssignmentsSnap.docs.map((doc) => ({
+    id: doc.id,
+    ...managerAssignmentSchema.parse(doc.data()),
+  }));
+
+  const statusHistory = statusHistorySnap.docs.flatMap((doc) => {
+    const p = statusHistorySchema.safeParse(doc.data());
+    return p.success ? [{ id: doc.id, ...p.data }] : [];
+  });
+
+  const allUserIds = new Set<string>([
+    internship.internId,
+    ...managerAssignments.map((m) => m.userId),
+    ...teammateAssignments.map((t) => t.teammateUserId),
+    ...statusHistory.map((s) => s.changedBy),
+  ]);
 
   const teamIds = [
     ...new Set([
-      ...placementData.map((placement) => placement.teamId),
-      ...teammateData.map((assignment) => assignment.teamId),
+      ...placements.map((p) => p.teamId),
+      ...teammateAssignments.map((t) => t.teamId),
     ]),
   ];
-  const teamDocuments = teamIds.length
-    ? await adminFirestore.getAll(
-      ...teamIds.map((teamId) => adminFirestore.collection("teams").doc(teamId)),
-    )
-    : [];
-  const teams = new Map(
-    teamDocuments.map((team) => [
-      team.id,
-      (team.data()?.title as string | undefined) ?? "Unknown team",
-    ]),
+
+  const [usersMap, teamDocs] = await Promise.all([
+    getUserSummaries(allUserIds),
+    teamIds.length
+      ? adminFirestore.getAll(
+        ...teamIds.map((id) => adminFirestore.collection("teams").doc(id)),
+      )
+      : [],
+  ]);
+
+  const teamsMap = new Map(
+    teamDocs.flatMap((doc) =>
+      doc.exists ? [[doc.id, doc.data()?.title as string] as const] : [],
+    ),
   );
-  const history = await internshipRef
-    .collection("statusHistory")
-    .orderBy("changedAt", "desc")
-    .limit(50)
-    .get();
-  const { listEligibleUsers } = await import("@/server/assignments/service");
-  const currentMentors = teammateData.filter(
-    (assignment) =>
-      assignment.responsibilities.includes("mentor") &&
-      isOngoingOrScheduled(assignment as DateRange),
+
+  const checklist = await getStageChecklist(ref, internship, managerId);
+  const progressHub = await getManagerProgressHub(
+    ref,
+    internship,
+    managerId,
+    checklist,
   );
-  const currentPlacement = placementData
-    .filter((placement) => isOngoingOrScheduled(placement as DateRange))
-    .sort((a, b) => b.startsAt.toMillis() - a.startsAt.toMillis())[0];
-  const base = {
-    id: internshipId,
+
+  const currentPlacement = placements.find((p) => isCurrent(p)) ?? placements[0];
+  const currentMentors = teammateAssignments.filter(
+    (t) => t.responsibilities.includes("mentor") && isCurrent(t),
+  );
+
+  const internUser = usersMap.get(internship.internId);
+  const latestSharedActivityAt = latestActivity({ progressHub });
+
+  const portfolioItemBase = {
+    id: ref.id,
     intern: {
       id: internship.internId,
-      displayName: intern.displayName,
-      email: intern.email,
+      displayName: internUser?.displayName ?? "Unknown intern",
+      email: internUser?.email ?? "",
     },
     status: internship.status,
     currentStage: internship.currentStage,
@@ -514,15 +598,15 @@ export async function getManagerPortfolioDetail(
       readyToComplete: checklist.readyToComplete,
       isStageCompleted: checklist.isStageCompleted,
     },
-    mentorNames: currentMentors.map(
-      (assignment) =>
-        users.get(assignment.teammateUserId)?.displayName ?? "Unknown mentor",
-    ),
-    mentorUserIds: currentMentors.map((assignment) => assignment.teammateUserId),
+    mentorNames: currentMentors.flatMap((m) => {
+      const u = usersMap.get(m.teammateUserId);
+      return u ? [u.displayName] : [];
+    }),
+    mentorUserIds: currentMentors.map((m) => m.teammateUserId),
     currentPlacement: currentPlacement
       ? {
         teamId: currentPlacement.teamId,
-        teamTitle: teams.get(currentPlacement.teamId) ?? "Unknown team",
+        teamTitle: teamsMap.get(currentPlacement.teamId) ?? "Unknown Team",
       }
       : undefined,
     reflectionState: progressHub.summary.reflectionState,
@@ -531,121 +615,147 @@ export async function getManagerPortfolioDetail(
     overdueActionItems: progressHub.summary.overdueActionItems,
     nextDueAction: progressHub.summary.nextDueAction,
     unresolvedAgendaItems: progressHub.summary.unresolvedAgendaItems,
-    latestSharedActivityAt: latestActivity({ progressHub }),
-  } satisfies Omit<ManagerPortfolioItemDto, "attentionSignals">;
-  const item = { ...base, attentionSignals: deriveAttentionSignals(base) };
+    latestSharedActivityAt,
+  };
+
+  const attentionSignals = deriveAttentionSignals(portfolioItemBase);
+
+  const isOperational = isOperationalInternshipStatus(internship.status);
+
   return {
-    internship: { ...item, checklist, progressHub },
-    managerAssignments: managerData.map((assignment) => ({
-      userId: assignment.userId,
-      displayName: users.get(assignment.userId)?.displayName ?? "Unknown manager",
-      startsAt: timestamp(assignment.startsAt),
-      endsAt: timestamp(assignment.endsAt),
-      current: currentManagerAssignment(assignment),
+    internship: {
+      ...portfolioItemBase,
+      attentionSignals,
+      checklist,
+      progressHub,
+    },
+    managerAssignments: managerAssignments
+      .map((m) => ({
+        userId: m.userId,
+        displayName: usersMap.get(m.userId)?.displayName ?? "Unknown manager",
+        startsAt: timestamp(m.startsAt),
+        endsAt: timestamp(m.endsAt),
+        current: isCurrentManagerAssignment(m),
+      }))
+      .sort((a, b) => Number(b.current) - Number(a.current)),
+    statusHistory: statusHistory.map((s) => ({
+      id: s.id,
+      previousStatus: s.previousStatus,
+      newStatus: s.newStatus,
+      changedAt: timestamp(s.changedAt)!,
+      changedBy: usersMap.get(s.changedBy)?.displayName ?? s.changedBy,
+      reason: s.reason,
     })),
-    statusHistory: history.docs.flatMap((document) => {
-      const parsed = statusHistorySchema.safeParse(document.data());
-      if (!parsed.success) return [];
-      return [
-        {
-          id: document.id,
-          ...parsed.data,
-          changedAt: timestamp(parsed.data.changedAt)!,
-        },
-      ];
+    placements: placements.map((p) => ({
+      id: p.id,
+      teamId: p.teamId,
+      teamTitle: teamsMap.get(p.teamId) ?? "Unknown Team",
+      startsAt: timestamp(p.startsAt)!,
+      endsAt: timestamp(p.endsAt),
+      current: isCurrent(p),
+      status: assignmentStatus(p),
+    })),
+    teammateAssignments: teammateAssignments.map((t) => ({
+      id: t.id,
+      teammateUserId: t.teammateUserId,
+      teammateName: usersMap.get(t.teammateUserId)?.displayName ?? "Unknown teammate",
+      teamId: t.teamId,
+      teamTitle: teamsMap.get(t.teamId) ?? "Unknown Team",
+      responsibilities: t.responsibilities,
+      startsAt: timestamp(t.startsAt)!,
+      endsAt: timestamp(t.endsAt),
+      current: isCurrent(t),
+      status: assignmentStatus(t),
+    })),
+    eligibleManagers: eligibleManagers.docs.map((doc) => {
+      const u = appUserSchema.parse(doc.data());
+      return {
+        id: doc.id,
+        displayName: u.displayName,
+        email: u.email,
+        identityState: u.identityState,
+      };
     }),
-    placements: placementData.map((placement) => ({
-      id: placement.id,
-      teamId: placement.teamId,
-      teamTitle: teams.get(placement.teamId) ?? "Unknown team",
-      startsAt: timestamp(placement.startsAt)!,
-      endsAt: timestamp(placement.endsAt),
-      current: isCurrent(placement),
-      status: assignmentStatus(placement),
-    })),
-    teammateAssignments: teammateData.map((assignment) => ({
-      id: assignment.id,
-      teammateUserId: assignment.teammateUserId,
-      teammateName:
-        users.get(assignment.teammateUserId)?.displayName ?? "Unknown teammate",
-      teamId: assignment.teamId,
-      teamTitle: teams.get(assignment.teamId) ?? "Unknown team",
-      responsibilities: assignment.responsibilities,
-      startsAt: timestamp(assignment.startsAt)!,
-      endsAt: timestamp(assignment.endsAt),
-      current: isCurrent(assignment),
-      status: assignmentStatus(assignment),
-    })),
-    eligibleManagers: await listEligibleUsers("manager"),
-    eligibleTeammates: await listEligibleUsers("teammate"),
+    eligibleTeammates: eligibleTeammates.docs.map((doc) => {
+      const u = appUserSchema.parse(doc.data());
+      return {
+        id: doc.id,
+        displayName: u.displayName,
+        email: u.email,
+        identityState: u.identityState,
+      };
+    }),
     capabilities: {
-      canManage: isOperationalInternshipStatus(internship.status),
-      canEditExpectedEnd: isOperationalInternshipStatus(internship.status),
-      canManageManagers: isOperationalInternshipStatus(internship.status),
-      canManagePlacements: isOperationalInternshipStatus(internship.status),
-      canManageTeammates: isOperationalInternshipStatus(internship.status),
-      canChangeStatus: isOperationalInternshipStatus(internship.status),
-      canTransitionStatus: isOperationalInternshipStatus(internship.status),
+      canManage: isOperational,
+      canEditExpectedEnd: isOperational,
+      canManageManagers: isOperational,
+      canManagePlacements: isOperational,
+      canManageTeammates: isOperational,
+      canChangeStatus: isOperational,
+      canTransitionStatus: isOperational,
     },
   };
-}
-
-function transitionTarget(
-  status: InternshipStatus,
-  action: z.infer<typeof statusCommandSchema>["action"],
-) {
-  const allowed = {
-    active: { pause: "paused", cancel: "cancelled", complete: "completed" },
-    paused: { resume: "active", cancel: "cancelled", complete: "completed" },
-    completed: {},
-    cancelled: {},
-  } as const;
-  const target = allowed[status][action as keyof (typeof allowed)[typeof status]];
-  if (!target) throw new Error("This status transition is not allowed.");
-  return target as InternshipStatus;
 }
 
 export async function transitionInternshipStatus(
   internshipId: string,
   managerId: string,
-  input: z.infer<typeof statusCommandSchema>,
+  command: z.infer<typeof statusCommandSchema>,
 ) {
-  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  const ref = adminFirestore.collection("internships").doc(internshipId);
   await adminFirestore.runTransaction(async (transaction) => {
-    const internship = await assertCurrentManagerInTransaction(
+    const internship = await readManagerMutationAccess(
       transaction,
-      internshipRef,
+      ref,
       managerId,
     );
-    const guardRef = adminFirestore
-      .collection("internshipGuards")
-      .doc(internship.internId);
-    const [progressSnapshot, guard] = await Promise.all([
-      transaction.get(internshipRef.collection("stageProgress").doc("finalReview")),
-      transaction.get(guardRef),
-    ]);
-    assertOperationalInternship(internship);
-    const nextStatus = transitionTarget(internship.status, input.action);
+
+    let nextStatus: InternshipStatus;
+    switch (command.action) {
+      case "pause":
+        if (internship.status !== "active") {
+          throw new Error("Only active internships can be paused.");
+        }
+        nextStatus = "paused";
+        break;
+      case "resume":
+        if (internship.status !== "paused") {
+          throw new Error("Only paused internships can be resumed.");
+        }
+        nextStatus = "active";
+        break;
+      case "cancel":
+        if (!isOperationalInternshipStatus(internship.status)) {
+          throw new Error("Completed or cancelled internships cannot be cancelled.");
+        }
+        nextStatus = "cancelled";
+        break;
+      case "complete":
+        if (!isOperationalInternshipStatus(internship.status)) {
+          throw new Error("Completed or cancelled internships cannot be completed.");
+        }
+        nextStatus = "completed";
+        break;
+    }
+
     if (nextStatus === "completed") {
       if (internship.currentStage !== "finalReview") {
         throw new Error("Only Final Review internships can be completed.");
       }
-      if (!progressSnapshot.exists) throw new Error("Final Review is not complete.");
+      const progressSnapshot = await transaction.get(
+        ref.collection("stageProgress").doc("finalReview"),
+      );
+      if (!progressSnapshot.exists) {
+        throw new Error("Final Review is not complete.");
+      }
       const progress = stageProgressSchema.parse(progressSnapshot.data());
-      const template = getStageChecklistTemplate("finalReview");
-      if (
-        progress.stage !== "finalReview" ||
-        !progress.completedAt ||
-        !areRequiredChecklistItemsComplete(
-          [...template.items, ...progress.customItems],
-          progress.items,
-        )
-      ) {
+      if (progress.stage !== "finalReview" || !progress.completedAt) {
         throw new Error("Complete every required Final Review item first.");
       }
     }
+
     const completionDate =
-      input.completionDate ?? dateInApplicationTimeZone(Timestamp.now());
+      command.completionDate ?? dateInApplicationTimeZone(Timestamp.now());
     const completedAt = Timestamp.fromDate(new Date(`${completionDate}T00:00:00.000Z`));
     if (
       nextStatus === "completed" &&
@@ -655,26 +765,44 @@ export async function transitionInternshipStatus(
         "The completion date cannot be before the internship start date.",
       );
     }
-    transaction.update(internshipRef, {
+
+    const guardRef = adminFirestore
+      .collection("internshipGuards")
+      .doc(internship.internId);
+
+    transaction.update(ref, {
       status: nextStatus,
-      ...(nextStatus === "completed" ? { endsAt: completedAt } : {}),
+      ...(nextStatus === "completed" || nextStatus === "cancelled"
+        ? { endsAt: completedAt }
+        : {}),
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: managerId,
     });
-    transaction.create(internshipRef.collection("statusHistory").doc(), {
+
+    if (nextStatus === "completed" || nextStatus === "cancelled") {
+      transaction.delete(guardRef);
+    } else {
+      transaction.set(
+        guardRef,
+        {
+          internshipId: ref.id,
+          status: nextStatus,
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: managerId,
+        },
+        { merge: true },
+      );
+    }
+
+    const statusHistoryRef = ref.collection("statusHistory").doc();
+    transaction.create(statusHistoryRef, {
       previousStatus: internship.status,
       newStatus: nextStatus,
       changedAt: FieldValue.serverTimestamp(),
       changedBy: managerId,
-      ...(input.reason ? { reason: input.reason } : {}),
+      ...(command.reason?.trim() ? { reason: command.reason.trim() } : {}),
     });
-    if (nextStatus === "completed" || nextStatus === "cancelled") {
-      if (guard.exists && guard.data()?.internshipId === internshipId) {
-        transaction.delete(guardRef);
-      }
-    }
   });
-  return getManagerPortfolioDetail(internshipId, managerId);
 }
 
 export async function updateExpectedEndDate(
@@ -682,151 +810,156 @@ export async function updateExpectedEndDate(
   managerId: string,
   input: z.infer<typeof expectedEndDateInputSchema>,
 ) {
-  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  const ref = adminFirestore.collection("internships").doc(internshipId);
   await adminFirestore.runTransaction(async (transaction) => {
-    const internship = await assertCurrentManagerInTransaction(
+    const internship = await readManagerMutationAccess(
       transaction,
-      internshipRef,
+      ref,
       managerId,
     );
-    assertOperationalInternship(internship);
-    const endsAt = input.endsAt
-      ? Timestamp.fromDate(new Date(`${input.endsAt}T00:00:00.000Z`))
-      : undefined;
-    if (endsAt && endsAt.toMillis() < internship.startsAt.toMillis()) {
-      throw new Error("The expected end date cannot be before the start date.");
+
+    if (!isOperationalInternshipStatus(internship.status)) {
+      throw new Error("Completed and cancelled internships are read-only.");
     }
-    transaction.update(internshipRef, {
-      endsAt: endsAt ?? FieldValue.delete(),
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: managerId,
-    });
+
+    transaction.update(
+      ref,
+      input.endsAt
+        ? {
+          endsAt: Timestamp.fromDate(new Date(`${input.endsAt}T00:00:00.000Z`)),
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: managerId,
+        }
+        : {
+          endsAt: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+          updatedBy: managerId,
+        },
+    );
   });
-  return getManagerPortfolioDetail(internshipId, managerId);
 }
 
 export async function addManagerAssignment(
   internshipId: string,
-  actorId: string,
+  managerId: string,
   input: z.infer<typeof managerAssignmentInputSchema>,
 ) {
-  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  const ref = adminFirestore.collection("internships").doc(internshipId);
   await adminFirestore.runTransaction(async (transaction) => {
-    const targetRef = internshipRef
-      .collection("managerAssignments")
-      .doc(input.managerUserId);
-    const [targetUser, targetAssignment] = await Promise.all([
-      transaction.get(adminFirestore.collection("users").doc(input.managerUserId)),
-      transaction.get(targetRef),
-    ]);
-    const current = await assertCurrentManagerInTransaction(
+    const internship = await readManagerMutationAccess(
       transaction,
-      internshipRef,
-      actorId,
+      ref,
+      managerId,
     );
-    assertOperationalInternship(current);
-    const manager = targetUser.exists
-      ? appUserSchema.parse(targetUser.data())
-      : undefined;
-    if (!manager?.active || !manager.roles.includes("manager")) {
-      throw new Error("The selected user is not an active manager.");
+
+    if (!isOperationalInternshipStatus(internship.status)) {
+      throw new Error("Completed and cancelled internships are read-only.");
     }
-    if (targetAssignment.exists && currentManagerAssignment(targetAssignment.data()))
-      return;
-    if (targetAssignment.exists) {
-      throw new Error(
-        "This manager has a historical assignment and cannot be re-added yet.",
-      );
+
+    const newManagerRef = adminFirestore.collection("users").doc(input.managerUserId);
+    const newManagerSnap = await transaction.get(newManagerRef);
+
+    if (!newManagerSnap.exists) {
+      throw new Error("The selected user does not exist.");
     }
-    transaction.create(targetRef, {
-      userId: input.managerUserId,
-      startsAt: FieldValue.serverTimestamp(),
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: actorId,
-      updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: actorId,
-    });
+
+    const newManagerUser = appUserSchema.parse(newManagerSnap.data());
+    if (!newManagerUser.active || !newManagerUser.roles.includes("manager")) {
+      throw new Error("The selected user is not an eligible manager.");
+    }
+
+    const assignmentRef = ref.collection("managerAssignments").doc(input.managerUserId);
+    const existingSnap = await transaction.get(assignmentRef);
+
+    if (existingSnap.exists && currentManagerAssignment(existingSnap.data())) {
+      throw new Error("This manager is already assigned.");
+    }
+
+    transaction.set(
+      assignmentRef,
+      {
+        userId: input.managerUserId,
+        startsAt: FieldValue.serverTimestamp(),
+        endsAt: FieldValue.delete(),
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: managerId,
+        updatedAt: FieldValue.serverTimestamp(),
+        updatedBy: managerId,
+      },
+      { merge: true },
+    );
   });
-  return getManagerPortfolioDetail(internshipId, actorId);
 }
 
 export async function removeManagerAssignment(
   internshipId: string,
-  actorId: string,
+  managerId: string,
   input: z.infer<typeof removeManagerAssignmentInputSchema>,
 ) {
-  const internshipRef = adminFirestore.collection("internships").doc(internshipId);
+  const ref = adminFirestore.collection("internships").doc(internshipId);
   await adminFirestore.runTransaction(async (transaction) => {
-    const targetRef = internshipRef
-      .collection("managerAssignments")
-      .doc(input.managerUserId);
-    const replacementRef = input.replacementManagerUserId
-      ? internshipRef
-        .collection("managerAssignments")
-        .doc(input.replacementManagerUserId)
-      : undefined;
-    const [internship, assignments, target, replacement, replacementUser] =
-      await Promise.all([
-        transaction.get(internshipRef),
-        transaction.get(internshipRef.collection("managerAssignments")),
-        transaction.get(targetRef),
-        replacementRef ? transaction.get(replacementRef) : Promise.resolve(undefined),
-        input.replacementManagerUserId
-          ? transaction.get(
-            adminFirestore.collection("users").doc(input.replacementManagerUserId),
-          )
-          : Promise.resolve(undefined),
-      ]);
-    if (
-      !internship.exists ||
-      !target.exists ||
-      !currentManagerAssignment(target.data())
-    ) {
-      throw new Error("Current manager assignment not found.");
-    }
-    const current = await assertCurrentManagerInTransaction(
+    const internship = await readManagerMutationAccess(
       transaction,
-      internshipRef,
-      actorId,
+      ref,
+      managerId,
     );
-    assertOperationalInternship(current);
-    if (input.replacementManagerUserId === input.managerUserId) {
-      throw new Error("A manager cannot be their own replacement.");
+
+    if (!isOperationalInternshipStatus(internship.status)) {
+      throw new Error("Completed and cancelled internships are read-only.");
     }
-    const currentCount = assignments.docs.filter((document) =>
-      currentManagerAssignment(document.data()),
-    ).length;
-    if (currentCount <= 1 && !replacementRef) {
-      throw new Error("Assign a replacement before removing the final manager.");
-    }
-    if (replacementRef && input.replacementManagerUserId !== input.managerUserId) {
-      const user = replacementUser?.exists
-        ? appUserSchema.parse(replacementUser.data())
-        : undefined;
-      if (!user?.active || !user.roles.includes("manager")) {
-        throw new Error("The replacement must be an active manager.");
-      }
-      if (replacement?.exists && !currentManagerAssignment(replacement.data())) {
+
+    const allAssignmentsSnap = await transaction.get(ref.collection("managerAssignments"));
+    const currentAssignments = allAssignmentsSnap.docs.filter((doc) =>
+      currentManagerAssignment(doc.data()),
+    );
+
+    if (
+      currentAssignments.length === 1 &&
+      currentAssignments[0].id === input.managerUserId
+    ) {
+      if (!input.replacementManagerUserId) {
         throw new Error(
-          "The replacement has a historical assignment and cannot be re-added yet.",
+          "A replacement manager is required when removing the final current manager.",
         );
       }
-      if (!replacement?.exists) {
-        transaction.create(replacementRef, {
+
+      if (input.replacementManagerUserId === input.managerUserId) {
+        throw new Error("The replacement manager must be a different user.");
+      }
+
+      const replacementRef = adminFirestore
+        .collection("users")
+        .doc(input.replacementManagerUserId);
+      const replacementSnap = await transaction.get(replacementRef);
+
+      if (!replacementSnap.exists) {
+        throw new Error("The replacement manager does not exist.");
+      }
+
+      const replacementUser = appUserSchema.parse(replacementSnap.data());
+      if (!replacementUser.active || !replacementUser.roles.includes("manager")) {
+        throw new Error("The replacement user is not an eligible manager.");
+      }
+
+      transaction.set(
+        ref.collection("managerAssignments").doc(input.replacementManagerUserId),
+        {
           userId: input.replacementManagerUserId,
           startsAt: FieldValue.serverTimestamp(),
           createdAt: FieldValue.serverTimestamp(),
-          createdBy: actorId,
+          createdBy: managerId,
           updatedAt: FieldValue.serverTimestamp(),
-          updatedBy: actorId,
-        });
-      }
+          updatedBy: managerId,
+        },
+        { merge: true },
+      );
     }
+
+    const targetRef = ref.collection("managerAssignments").doc(input.managerUserId);
     transaction.update(targetRef, {
       endsAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      updatedBy: actorId,
+      updatedBy: managerId,
     });
   });
-  return getManagerPortfolioDetail(internshipId, actorId);
 }

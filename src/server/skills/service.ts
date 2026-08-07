@@ -7,6 +7,7 @@ import { adminFirestore } from "@/server/firebase/admin";
 import { parseInternshipDocument } from "@/server/internships/domain";
 import { AuthorizationError } from "@/server/authorization/errors";
 import { resolveProgressHubAccess } from "@/server/progress-hub/service";
+import { getWeekPeriod } from "@/lib/progress-hub/week";
 import {
   weekKeySchema,
   ratingsSchema,
@@ -29,6 +30,10 @@ export async function saveSkillRatings(
   ratings: SkillRatings,
   actorUserId: string,
 ) {
+  if (getWeekPeriod(weekKey).state !== "current") {
+    throw new BadRequestError("Only current week records can be created or updated.");
+  }
+
   const internshipRef = adminFirestore.collection("internships").doc(internshipId);
 
   await adminFirestore.runTransaction(async (transaction) => {

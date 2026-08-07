@@ -18,6 +18,9 @@ describe("stage checklist templates", () => {
       expect(
         template.items.every((item) => item.allowedCompletionActors.length > 0),
       ).toBe(true);
+      expect(template.items.every((item) => item.skills.length > 0 && item.weight > 0)).toBe(
+        true,
+      );
     }
   });
 

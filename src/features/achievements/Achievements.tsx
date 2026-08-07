@@ -7,21 +7,30 @@ import {
   achievementCategories,
   type AchievementListDto,
 } from "@/lib/achievements/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 export function Achievements({
   internshipId,
   data,
+  variant = "default",
 }: {
   internshipId: string;
   data: AchievementListDto;
+  variant?: WorkspaceVariant;
 }) {
   const router = useRouter();
+  const styles = workspaceStyles(variant);
   const [title, setTitle] = useState("");
   const [category, setCategory] =
     useState<(typeof achievementCategories)[number]["value"]>("milestone");
   const [achievedOn, setAchievedOn] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+
   async function save() {
     setPending(true);
     setError("");
@@ -40,11 +49,12 @@ export function Achievements({
     setAchievedOn("");
     router.refresh();
   }
+
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+    <section id="achievements" className={cn(styles.section, "scroll-mt-24")}>
       <div>
-        <h2 className="text-lg font-semibold">Achievements</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h2 className={styles.heading}>Achievements</h2>
+        <p className={styles.description}>
           Meaningful outcomes and milestones from this internship.
         </p>
       </div>
@@ -54,12 +64,12 @@ export function Achievements({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Achievement title"
-            className="h-10 rounded-lg border bg-background px-3"
+            className={cn(styles.input, "h-10")}
           />
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value as typeof category)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={cn(styles.select, "h-10")}
           >
             {achievementCategories.map((item) => (
               <option key={item.value} value={item.value}>
@@ -71,32 +81,33 @@ export function Achievements({
             type="date"
             value={achievedOn}
             onChange={(event) => setAchievedOn(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={cn(styles.input, "h-10")}
           />
           <Button
             type="button"
             disabled={pending || !title.trim() || !achievedOn}
             onClick={save}
+            className={styles.primaryButton}
           >
             {pending ? "Saving…" : "Add achievement"}
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className={cn("text-sm", styles.muted)}>
           Achievements are read-only for this internship.
         </p>
       )}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
       {data.achievements.length ? (
         <ul className="space-y-2">
           {data.achievements.map((achievement) => (
-            <li key={achievement.id} className="rounded-xl border p-3">
+            <li key={achievement.id} className={styles.innerCard}>
               <p className="font-medium">{achievement.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className={cn("mt-1 text-sm", styles.muted)}>
                 {achievement.category} · {achievement.achievedOn} ·{" "}
                 {achievement.author.displayName}
               </p>
@@ -107,7 +118,7 @@ export function Achievements({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No achievements yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No achievements yet.</p>
       )}
     </section>
   );

@@ -10,13 +10,6 @@ export type FirebaseIdentityClaims = {
   firebase?: { sign_in_provider?: string };
 };
 
-const ALLOWED_EMAIL_DOMAINS = ["fluxon.com", "ucu.edu.ua"];
-
-function isAllowedDomain(email: string): boolean {
-  const domain = email.split("@")[1]?.toLowerCase();
-  return Boolean(domain && ALLOWED_EMAIL_DOMAINS.includes(domain));
-}
-
 export function validateIdentityClaims(
   claims: FirebaseIdentityClaims,
   allowDevelopmentPassword: boolean,
@@ -42,14 +35,6 @@ export function validateIdentityClaims(
     throw new AuthenticationError(
       "UNSUPPORTED_PROVIDER",
       "The identity provider is not enabled.",
-    );
-  }
-
-  // Validate allowed email domains
-  if (!isAllowedDomain(claims.email)) {
-    throw new AuthenticationError(
-      "UNSUPPORTED_PROVIDER",
-      "Only @fluxon.com and @ucu.edu.ua email accounts are permitted.",
     );
   }
 
