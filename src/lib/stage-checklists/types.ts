@@ -1,6 +1,6 @@
 import type { InternshipLifecycle, InternshipStage } from "@/lib/internships/types";
 import type { ChecklistItemType } from "@/lib/stage-checklists/templates";
-import type { InternshipSkill, SkillProgressDto } from "@/lib/skills/types";
+import type { InternshipSkill } from "@/lib/skills/types";
 
 export type StageChecklistItemDto = {
   key: string;
@@ -14,6 +14,25 @@ export type StageChecklistItemDto = {
   completedBy?: string;
   canComplete: boolean;
   canDelete: boolean;
+};
+
+export const skillProgressAreas = [
+  { value: "technical", label: "Technical" },
+  { value: "communication", label: "Communication" },
+  { value: "ownership", label: "Ownership" },
+  { value: "codeQuality", label: "Code quality" },
+  { value: "productUnderstanding", label: "Product understanding" },
+  { value: "collaboration", label: "Collaboration" },
+  { value: "planning", label: "Planning" },
+  { value: "leadership", label: "Leadership" },
+] as const;
+
+export type SkillProgressArea = (typeof skillProgressAreas)[number]["value"];
+
+export type SkillProgressDto = {
+  area: SkillProgressArea;
+  completed: number;
+  total: number;
 };
 
 export type StageChecklistDto = {

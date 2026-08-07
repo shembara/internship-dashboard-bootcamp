@@ -4,9 +4,11 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import type {
+  SkillProgressArea,
   StageChecklistDto,
   StageChecklistItemDto,
 } from "@/lib/stage-checklists/types";
+import { skillProgressAreas } from "@/lib/stage-checklists/types";
 import {
   getStageChecklistTemplate,
   type ChecklistCompletionActor,
@@ -18,12 +20,8 @@ import {
   internshipSkills,
   type InternshipSkill,
   type SkillPointItem,
-  type SkillProgressDto,
 } from "@/lib/skills/types";
-import {
-  calculateSkillProgress,
-  exceedsSkillPointTargets,
-} from "@/lib/skills/progress";
+import { exceedsSkillPointTargets } from "@/lib/skills/progress";
 import {
   isCurrent,
   isCurrentManagerAssignment,
@@ -351,7 +349,6 @@ function stageChecklistDto(
   progress: StageProgress,
   access: ChecklistAccess,
   isMutable: boolean,
-  skillProgress: SkillProgressDto[],
 ): StageChecklistDto {
   const template = getStageChecklistTemplate(stage);
   const isStageCompleted = Boolean(progress.completedAt);
@@ -393,6 +390,17 @@ function stageChecklistDto(
   const reviewStatus = isStageCompleted
     ? "completed"
     : (progress.reviewStatus ?? (requiredComplete ? "underReview" : "active"));
+  const skillProgress = skillProgressAreas.map((area) => {
+    const relevantItems = items.filter((item) =>
+      skillAreasForItem(item.key).includes(area.value),
+    );
+    return {
+      area: area.value,
+      completed: relevantItems.filter((item) => item.completed).length,
+      total: relevantItems.length,
+    };
+  });
+
   return {
     stage,
     stageLabel: internshipStages.find((candidate) => candidate.value === stage)!.label,
@@ -414,10 +422,6 @@ function stageChecklistDto(
   };
 }
 
-function internshipSkillProgress(progressByStage: Map<InternshipStage, StageProgress>) {
-  return calculateSkillProgress(skillPointItems(progressByStage));
-}
-
 function skillPointItems(
   progressByStage: Map<InternshipStage, StageProgress>,
 ): SkillPointItem[] {
@@ -434,6 +438,82 @@ function skillPointItems(
       },
     );
   });
+}
+
+function skillAreasForItem(key: string): SkillProgressArea[] {
+  const areas = new Set<SkillProgressArea>();
+  const includes = (value: string) => key.includes(value);
+
+  if (
+    includes("code") ||
+    includes("technical") ||
+    includes("development") ||
+    includes("implementation") ||
+    includes("repository") ||
+    includes("environment") ||
+    includes("architecture") ||
+    includes("bug") ||
+    includes("production")
+  ) {
+    areas.add("technical");
+  }
+  if (
+    includes("test") ||
+    includes("pull-request") ||
+    includes("review") ||
+    includes("documentation")
+  ) {
+    areas.add("codeQuality");
+  }
+  if (
+    includes("product") ||
+    includes("workflow") ||
+    includes("requirement") ||
+    includes("client")
+  ) {
+    areas.add("productUnderstanding");
+  }
+  if (
+    includes("plan") ||
+    includes("estimate") ||
+    includes("calendar") ||
+    includes("task") ||
+    includes("refinement")
+  ) {
+    areas.add("planning");
+  }
+  if (
+    includes("independent") ||
+    includes("own") ||
+    includes("proposal") ||
+    includes("improvement") ||
+    includes("self-")
+  ) {
+    areas.add("ownership");
+  }
+  if (
+    includes("mentor") ||
+    includes("team") ||
+    includes("feedback") ||
+    includes("discussion") ||
+    includes("meeting") ||
+    includes("slack")
+  ) {
+    areas.add("collaboration");
+  }
+  if (
+    includes("led") ||
+    includes("shared") ||
+    includes("demo") ||
+    includes("decision") ||
+    includes("presentation")
+  ) {
+    areas.add("leadership");
+  }
+  if (!areas.size) areas.add("communication");
+  if (areas.has("collaboration")) areas.add("communication");
+
+  return [...areas];
 }
 
 async function ensureStageProgress(
@@ -474,27 +554,16 @@ export async function getStageChecklist(
     internship.status === "active" && selectedStage === internship.currentStage
       ? await ensureStageProgress(internshipRef, selectedStage, userId)
       : internshipRef.collection("stageProgress").doc(selectedStage);
-  const [progress, allProgress] = await Promise.all([
-    progressRef.get(),
-    internshipRef.collection("stageProgress").get(),
-  ]);
-  const progressByStage = new Map<InternshipStage, StageProgress>();
-  for (const document of allProgress.docs) {
-    const stage = internshipStages.find((candidate) => candidate.value === document.id)
-      ?.value;
-    if (stage) progressByStage.set(stage, parseStageProgress(document.data(), stage));
-  }
+  const progress = await progressRef.get();
   const selectedProgress = progress.exists
     ? parseStageProgress(progress.data(), selectedStage)
     : initialReadOnlyStageProgress(selectedStage);
-  progressByStage.set(selectedStage, selectedProgress);
 
   return stageChecklistDto(
     selectedStage,
     selectedProgress,
     access,
     internship.status === "active" && selectedStage === internship.currentStage,
-    internshipSkillProgress(progressByStage),
   );
 }
 

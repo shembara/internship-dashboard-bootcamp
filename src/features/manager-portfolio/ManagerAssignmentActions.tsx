@@ -6,16 +6,24 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { ApplicationUserOption } from "@/lib/assignments/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 function AddManagerForm({
   internshipId,
   managers,
   close,
+  variant = "default",
 }: {
   internshipId: string;
   managers: ApplicationUserOption[];
   close: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [managerUserId, setManagerUserId] = useState("");
   const [pending, setPending] = useState(false);
@@ -43,13 +51,13 @@ function AddManagerForm({
   }
   return (
     <form onSubmit={submit} className="space-y-4">
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Manager
         <select
           value={managerUserId}
           onChange={(event) => setManagerUserId(event.target.value)}
           required
-          className="h-10 rounded-lg border bg-background px-3"
+          className={styles.select}
         >
           <option value="">Select a manager</option>
           {managers.map((manager) => (
@@ -60,11 +68,15 @@ function AddManagerForm({
         </select>
       </label>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending || !managerUserId}>
+      <Button
+        type="submit"
+        disabled={pending || !managerUserId}
+        className={styles.primaryButton}
+      >
         {pending ? "Adding…" : "Add manager"}
       </Button>
     </form>
@@ -76,12 +88,15 @@ function EndManagerForm({
   managerUserId,
   managers,
   close,
+  variant = "default",
 }: {
   internshipId: string;
   managerUserId: string;
   managers: ApplicationUserOption[];
   close: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [replacementManagerUserId, setReplacementManagerUserId] = useState("");
   const [pending, setPending] = useState(false);
@@ -111,16 +126,16 @@ function EndManagerForm({
   }
   return (
     <form onSubmit={submit} className="space-y-4">
-      <p className="text-sm">
+      <p className={cn("text-sm", variant === "dark" ? "text-[#c9d1d9]" : undefined)}>
         Ending this assignment removes this manager&apos;s access. Select a replacement
         when this is the final current manager.
       </p>
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Replacement manager (if needed)
         <select
           value={replacementManagerUserId}
           onChange={(event) => setReplacementManagerUserId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={styles.select}
         >
           <option value="">No replacement</option>
           {managers
@@ -133,11 +148,16 @@ function EndManagerForm({
         </select>
       </label>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
-      <Button type="submit" variant="outline" disabled={pending}>
+      <Button
+        type="submit"
+        variant="outline"
+        disabled={pending}
+        className={styles.outlineButton}
+      >
         {pending ? "Ending…" : "Confirm end assignment"}
       </Button>
     </form>
@@ -148,16 +168,22 @@ export function ManagerAssignmentActions({
   internshipId,
   managerUserId,
   managers,
+  variant = "default",
 }: {
   internshipId: string;
   managerUserId?: string;
   managers: ApplicationUserOption[];
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
+  const modalVariant = variant === "dark" ? "dark" : undefined;
+
   if (!managerUserId)
     return (
       <Modal
+        variant={modalVariant}
         trigger={
-          <Button type="button" size="sm">
+          <Button type="button" size="sm" className={styles.primaryButton}>
             Add manager
           </Button>
         }
@@ -169,14 +195,21 @@ export function ManagerAssignmentActions({
             internshipId={internshipId}
             managers={managers}
             close={close}
+            variant={variant}
           />
         )}
       </Modal>
     );
   return (
     <Modal
+      variant={modalVariant}
       trigger={
-        <Button type="button" size="sm" variant="outline">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className={styles.outlineButton}
+        >
           End assignment
         </Button>
       }
@@ -189,6 +222,7 @@ export function ManagerAssignmentActions({
           managerUserId={managerUserId}
           managers={managers}
           close={close}
+          variant={variant}
         />
       )}
     </Modal>

@@ -10,21 +10,39 @@ import {
   managerAttentionSignals,
   type ManagerPortfolioDto,
 } from "@/lib/manager-portfolio/types";
+import {
+  managerStatusPillStyles,
+  managerTheme,
+} from "@/lib/manager-workspace/theme";
 import { cn } from "@/lib/utils";
 
 function signalClass(severity: "critical" | "warning" | "neutral" | "positive") {
   return {
-    critical: "border-destructive/30 bg-destructive/10 text-destructive",
-    warning: "border-amber-500/30 bg-amber-500/10 text-amber-800",
-    neutral: "border-muted-foreground/25 bg-muted text-muted-foreground",
-    positive:
-      "border-[var(--brand)]/25 bg-[var(--brand-soft)] text-[var(--brand-strong)]",
+    critical: "border-red-500/40 bg-red-500/10 text-red-400",
+    warning: "border-amber-500/40 bg-amber-500/10 text-amber-400",
+    neutral: "border-white/15 bg-[#0d1117] text-[#8b949e]",
+    positive: "border-emerald-500/40 bg-emerald-500/10 text-emerald-400",
   }[severity];
 }
 
 function dateLabel(value: string | undefined) {
   return value ? new Date(value).toLocaleDateString() : "No end date";
 }
+
+function attentionValueClass(value: string) {
+  if (/missing|draft|overdue/i.test(value)) {
+    return "text-amber-400";
+  }
+  return "text-[#c9d1d9]";
+}
+
+type MetricCard = {
+  key: string;
+  label: string;
+  value: number;
+  accent?: boolean;
+  warning?: boolean;
+};
 
 export function ManagerPortfolio({ portfolio }: { portfolio: ManagerPortfolioDto }) {
   return <ManagerPortfolioControls portfolio={portfolio} />;
@@ -40,6 +58,48 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
   const [mentorId, setMentorId] = useState(portfolio.query.mentorId ?? "");
   const [sort, setSort] = useState(portfolio.query.sort);
   const [direction, setDirection] = useState(portfolio.query.direction);
+
+  const primaryMetrics: MetricCard[] = [
+    { key: "total", label: "Assigned internships", value: portfolio.metrics.total },
+    {
+      key: "active",
+      label: "Active",
+      value: portfolio.metrics.byStatus.active,
+      accent: true,
+    },
+    {
+      key: "ready",
+      label: "Ready to complete",
+      value: portfolio.metrics.stagesReadyToComplete,
+    },
+  ];
+
+  const secondaryMetrics: MetricCard[] = [
+    {
+      key: "reflections",
+      label: "Missing reflections",
+      value: portfolio.metrics.missingCurrentWeekReflections,
+      warning: true,
+    },
+    {
+      key: "checkins",
+      label: "Missing or draft check-ins",
+      value: portfolio.metrics.missingOrDraftMentorCheckIns,
+      warning: true,
+    },
+    {
+      key: "overdue",
+      label: "With overdue actions",
+      value: portfolio.metrics.withOverdueActionItems,
+      warning: true,
+    },
+    { key: "paused", label: "Paused", value: portfolio.metrics.byStatus.paused },
+    {
+      key: "completed",
+      label: "Completed",
+      value: portfolio.metrics.byStatus.completed,
+    },
+  ];
 
   function navigate(page = 1) {
     const params = new URLSearchParams();
@@ -62,46 +122,61 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
 
   return (
     <div className="space-y-6">
-      <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Assigned internships", portfolio.metrics.total],
-          ["Active", portfolio.metrics.byStatus.active],
-          ["Paused", portfolio.metrics.byStatus.paused],
-          ["Ready to complete", portfolio.metrics.stagesReadyToComplete],
-          ["Missing reflections", portfolio.metrics.missingCurrentWeekReflections],
-          [
-            "Missing or draft check-ins",
-            portfolio.metrics.missingOrDraftMentorCheckIns,
-          ],
-          ["With overdue actions", portfolio.metrics.withOverdueActionItems],
-          ["Completed", portfolio.metrics.byStatus.completed],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border bg-card p-4 shadow-sm">
-            <dt className="text-sm text-muted-foreground">{label}</dt>
-            <dd className="mt-1 text-2xl font-semibold">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="space-y-3">
+        <dl className="grid gap-3 sm:grid-cols-3">
+          {primaryMetrics.map((metric) => (
+            <div
+              key={metric.key}
+              className={cn("p-4", metric.accent ? managerTheme.cardAccent : managerTheme.card)}
+            >
+              <dt className={managerTheme.label}>{metric.label}</dt>
+              <dd
+                className={cn(
+                  "mt-2 text-3xl font-semibold",
+                  metric.accent && "text-emerald-400",
+                )}
+              >
+                {metric.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {secondaryMetrics.map((metric) => (
+            <div key={metric.key} className={cn(managerTheme.card, "p-4")}>
+              <dt className={managerTheme.label}>{metric.label}</dt>
+              <dd
+                className={cn(
+                  "mt-2 text-2xl font-semibold",
+                  metric.warning && metric.value > 0 && "text-amber-400",
+                )}
+              >
+                {metric.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
 
       <form
         onSubmit={submit}
-        className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-3 xl:grid-cols-6"
+        className={cn(managerTheme.card, "grid gap-4 p-4 md:grid-cols-3 xl:grid-cols-6")}
       >
-        <label className="grid gap-1 text-sm font-medium md:col-span-2">
-          Search intern
+        <label className="grid gap-1.5 md:col-span-2">
+          <span className={managerTheme.label}>Search intern</span>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
             placeholder="Name"
           />
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Status
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Status</span>
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="">All statuses</option>
             {internshipStatuses.map((option) => (
@@ -111,12 +186,12 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Stage
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Stage</span>
           <select
             value={stage}
             onChange={(event) => setStage(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="">All stages</option>
             {internshipStages.map((option) => (
@@ -126,12 +201,12 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Attention
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Attention</span>
           <select
             value={attention}
             onChange={(event) => setAttention(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="">All signals</option>
             {managerAttentionSignals.map((option) => (
@@ -141,12 +216,12 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Mentor
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Mentor</span>
           <select
             value={mentorId}
             onChange={(event) => setMentorId(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="">All mentors</option>
             {portfolio.mentorOptions.map((option) => (
@@ -156,12 +231,12 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             ))}
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Sort by
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Sort by</span>
           <select
             value={sort}
             onChange={(event) => setSort(event.target.value as typeof sort)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="internName">Intern name</option>
             <option value="startsAt">Start date</option>
@@ -170,24 +245,27 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             <option value="overdueActions">Overdue actions</option>
           </select>
         </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Direction
+        <label className="grid gap-1.5">
+          <span className={managerTheme.label}>Direction</span>
           <select
             value={direction}
             onChange={(event) =>
               setDirection(event.target.value as typeof direction)
             }
-            className="h-10 rounded-lg border bg-background px-3"
+            className={managerTheme.input}
           >
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
           </select>
         </label>
-        <div className="flex items-end gap-2">
-          <Button type="submit">Apply filters</Button>
+        <div className="flex items-end gap-2 xl:col-span-2">
+          <Button type="submit" className={managerTheme.primaryButton}>
+            Apply filters
+          </Button>
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
+            className={managerTheme.ghostButton}
             onClick={() => {
               setSearch("");
               setStatus("");
@@ -217,42 +295,58 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
               <Link
                 key={item.id}
                 href={`/manager/internships/${item.id}`}
-                className="rounded-2xl border bg-card p-5 shadow-sm transition hover:border-[var(--brand)]"
+                className={cn(
+                  managerTheme.card,
+                  "block p-5 transition hover:border-emerald-500/30 hover:shadow-[0_0_24px_rgba(16,185,129,0.08)]",
+                )}
               >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-semibold">{item.intern.displayName}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {statusLabel} · {stageLabel} · {dateLabel(item.startsAt)} to{" "}
-                      {dateLabel(item.endsAt)}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-lg font-semibold">{item.intern.displayName}</h2>
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                          managerStatusPillStyles[item.status] ??
+                            "border-white/20 text-[#8b949e]",
+                        )}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <p className={cn("mt-1 text-sm", managerTheme.muted)}>
+                      {stageLabel} · {dateLabel(item.startsAt)} to {dateLabel(item.endsAt)}
                     </p>
                   </div>
-                  <p className="rounded-full border px-3 py-1 text-sm font-medium">
+                  <p className="rounded-full border border-white/15 bg-[#0d1117] px-3 py-1 text-sm font-medium text-[#c9d1d9]">
                     {item.currentStageChecklist.requiredCompletedCount}/
-                    {item.currentStageChecklist.requiredTotalCount} required checklist
-                    items
+                    {item.currentStageChecklist.requiredTotalCount} required checklist items
                   </p>
                 </div>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
                   <div>
-                    <dt className="text-muted-foreground">Mentors</dt>
-                    <dd>{item.mentorNames.join(", ") || "None"}</dd>
+                    <dt className={managerTheme.label}>Mentors</dt>
+                    <dd className="mt-1">{item.mentorNames.join(", ") || "None"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Team</dt>
-                    <dd>{item.currentPlacement?.teamTitle ?? "Unassigned"}</dd>
+                    <dt className={managerTheme.label}>Team</dt>
+                    <dd className="mt-1">{item.currentPlacement?.teamTitle ?? "Unassigned"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Reflection</dt>
-                    <dd>{item.reflectionState}</dd>
+                    <dt className={managerTheme.label}>Reflection</dt>
+                    <dd className={cn("mt-1", attentionValueClass(item.reflectionState))}>
+                      {item.reflectionState}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Check-in</dt>
-                    <dd>{item.mentorCheckInState}</dd>
+                    <dt className={managerTheme.label}>Check-in</dt>
+                    <dd className={cn("mt-1", attentionValueClass(item.mentorCheckInState))}>
+                      {item.mentorCheckInState}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Actions</dt>
-                    <dd>
+                    <dt className={managerTheme.label}>Actions</dt>
+                    <dd className="mt-1">
                       {item.openActionItems} open
                       {item.overdueActionItems
                         ? ` · ${item.overdueActionItems} overdue`
@@ -260,26 +354,33 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
                     </dd>
                   </div>
                 </dl>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {item.attentionSignals.map((signal) => (
-                    <span
-                      key={signal.key}
-                      className={cn(
-                        "rounded-full border px-2.5 py-1 text-xs font-medium",
-                        signalClass(signal.severity),
-                      )}
-                    >
-                      {signal.label}
-                      {signal.count ? ` (${signal.count})` : ""}
-                    </span>
-                  ))}
-                </div>
+                {item.attentionSignals.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {item.attentionSignals.map((signal) => (
+                      <span
+                        key={signal.key}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-xs font-medium",
+                          signalClass(signal.severity),
+                        )}
+                      >
+                        {signal.label}
+                        {signal.count ? ` (${signal.count})` : ""}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </Link>
             );
           })}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+        <div
+          className={cn(
+            managerTheme.card,
+            "border-dashed p-8 text-center text-sm text-[#8b949e]",
+          )}
+        >
           No assigned internships match these filters.
         </div>
       )}
@@ -288,7 +389,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
           aria-label="Portfolio pagination"
           className="flex items-center justify-between gap-3"
         >
-          <p className="text-sm text-muted-foreground">
+          <p className={cn("text-sm", managerTheme.muted)}>
             Page {portfolio.page} of {portfolio.totalPages} · {portfolio.total} matching
             internships
           </p>
@@ -296,6 +397,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             <Button
               type="button"
               variant="outline"
+              className={managerTheme.outlineButton}
               disabled={portfolio.page === 1}
               onClick={() => navigate(portfolio.page - 1)}
             >
@@ -304,6 +406,7 @@ function ManagerPortfolioControls({ portfolio }: { portfolio: ManagerPortfolioDt
             <Button
               type="button"
               variant="outline"
+              className={managerTheme.outlineButton}
               disabled={portfolio.page === portfolio.totalPages}
               onClick={() => navigate(portfolio.page + 1)}
             >

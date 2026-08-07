@@ -6,18 +6,26 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import type { ApplicationUserOption } from "@/lib/assignments/types";
 import { teammateResponsibilities } from "@/lib/teammate-responsibilities";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 export function TeammateAssignmentForm({
   internshipId,
   teamId,
   teammates,
   onSuccess,
+  variant = "default",
 }: {
   internshipId: string;
   teamId: string;
   teammates: ApplicationUserOption[];
   onSuccess?: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [teammateUserId, setTeammateUserId] = useState("");
   const [startsAt, setStartsAt] = useState("");
@@ -52,14 +60,14 @@ export function TeammateAssignmentForm({
   }
   return (
     <form onSubmit={submit} className="grid gap-4">
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Teammate
         <select
           name="teammateUserId"
           required
           value={teammateUserId}
           onChange={(event) => setTeammateUserId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={styles.select}
         >
           <option value="">Select teammate</option>
           {teammates.map((person) => (
@@ -69,7 +77,7 @@ export function TeammateAssignmentForm({
           ))}
         </select>
       </label>
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Starts
         <input
           name="startsAt"
@@ -77,10 +85,10 @@ export function TeammateAssignmentForm({
           required
           value={startsAt}
           onChange={(event) => setStartsAt(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={styles.input}
         />
       </label>
-      <fieldset className="grid gap-1 text-sm font-medium">
+      <fieldset className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         <legend>Responsibilities</legend>
         <div className="flex flex-wrap gap-3 pt-1 text-sm font-normal">
           {teammateResponsibilities.map((responsibility) => (
@@ -104,12 +112,12 @@ export function TeammateAssignmentForm({
         </div>
       </fieldset>
       {error ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className={styles.error} role="alert">
           {error}
         </p>
       ) : null}
       <div>
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting} className={styles.primaryButton}>
           {submitting ? "Assigning…" : "Assign teammate"}
         </Button>
       </div>

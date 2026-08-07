@@ -2,10 +2,13 @@ import { notFound, redirect } from "next/navigation";
 
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { InternshipLifecycle } from "@/features/internships/InternshipLifecycle";
-import { ProgressHub, type ProgressHubSection } from "@/features/progress-hub/ProgressHub";
-import { StageChecklist } from "@/features/stage-checklists/StageChecklist";
+import {
+  ProgressHub,
+  type ProgressHubSection,
+} from "@/features/progress-hub/ProgressHub";
 import { Achievements } from "@/features/achievements/Achievements";
 import { InternshipTimeline } from "@/features/timeline/InternshipTimeline";
+import { workspaceStyles } from "@/lib/manager-workspace/theme";
 
 import { listAchievements } from "@/server/achievements/service";
 import { getInternshipTimeline } from "@/server/timeline/service";
@@ -56,7 +59,6 @@ export default async function TeammateInternshipSectionPage({
   const validSections = [
     ...progressHubSections,
     "internship-lifecycle",
-    "stage-checklist",
     "one-on-one-preparation",
     "achievements",
     "internship-timeline",
@@ -67,12 +69,16 @@ export default async function TeammateInternshipSectionPage({
     notFound();
   }
 
-  const sectionLabel = section.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  const sectionLabel = section
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+  const styles = workspaceStyles("dark");
 
   return (
-    <section className="space-y-7">
+    <section className="workspace-page space-y-7">
       <div className="space-y-2">
         <Breadcrumbs
+          variant="dark"
           items={[
             { label: "Internships", href: "/teammate" },
             {
@@ -82,12 +88,8 @@ export default async function TeammateInternshipSectionPage({
             { label: sectionLabel },
           ]}
         />
-        <p className="text-sm font-medium text-[var(--brand-strong)]">
-          Teammate workspace
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {internship.internName}
-        </h1>
+        <p className={styles.eyebrow}>Teammate workspace</p>
+        <h1 className={styles.pageHeading}>{internship.internName}</h1>
       </div>
 
       {section === "internship-lifecycle" ? (
@@ -96,6 +98,7 @@ export default async function TeammateInternshipSectionPage({
           currentStage={internship.currentStage}
           checklist={internship.checklist}
           internshipId={internshipId}
+          variant="dark"
         />
       ) : null}
 
@@ -104,40 +107,45 @@ export default async function TeammateInternshipSectionPage({
           internshipId={internshipId}
           hub={internship.progressHub}
           visibleSection={section as ProgressHubSection}
+          variant="dark"
         />
       ) : null}
 
       {section === "one-on-one-preparation" ? (
-        <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+        <section className={styles.section}>
           <div>
-            <h2 className="text-lg font-semibold">1:1 Preparation</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className={styles.heading}>1:1 Preparation</h2>
+            <p className={styles.description}>
               Prepare talking points for upcoming one-to-one meetings.
             </p>
           </div>
-          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+          <div className={styles.dashedPlaceholder}>
             One-to-one preparation will be added here.
           </div>
         </section>
       ) : null}
 
       {section === "achievements" && achievementsData ? (
-        <Achievements internshipId={internshipId} data={achievementsData} />
+        <Achievements
+          internshipId={internshipId}
+          data={achievementsData}
+          variant="dark"
+        />
       ) : null}
 
       {section === "internship-timeline" && timelineData ? (
-        <InternshipTimeline timeline={timelineData} />
+        <InternshipTimeline timeline={timelineData} variant="dark" />
       ) : null}
 
       {section === "status-history" ? (
-        <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+        <section className={styles.section}>
           <div>
-            <h2 className="text-lg font-semibold">Status history</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h2 className={styles.heading}>Status history</h2>
+            <p className={styles.description}>
               Status changes recorded for this internship.
             </p>
           </div>
-          <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+          <div className={styles.dashedPlaceholder}>
             Status history details will appear here.
           </div>
         </section>
