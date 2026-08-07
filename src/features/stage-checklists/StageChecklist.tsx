@@ -418,7 +418,7 @@ export function StageChecklist({
                   close={close}
                   pending={isPending}
                   variant={variant}
-                  onSubmit={(label, type) =>
+                  onSubmit={(label, type, skills, weight) =>
                     mutate(
                       `/api/internships/${internshipId}/stage-checklist/tasks`,
                       { stage: checklist.stage, label, type, skills, weight },

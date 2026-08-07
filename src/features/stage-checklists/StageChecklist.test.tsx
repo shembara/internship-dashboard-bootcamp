@@ -132,4 +132,38 @@ describe("StageChecklist", () => {
       }),
     );
   });
+
+  it("posts skills and weight when adding a task", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 }))),
+    );
+    const user = userEvent.setup();
+    render(<StageChecklist internshipId="internship-1" checklist={checklist()} />);
+
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+    await user.type(screen.getByLabelText("Task name"), "Ship skill-linked task");
+    await user.selectOptions(screen.getByLabelText("Primary skill"), "communication");
+    await user.selectOptions(
+      screen.getByLabelText("Secondary skill (optional)"),
+      "ownership",
+    );
+    await user.clear(screen.getByLabelText("Weight"));
+    await user.type(screen.getByLabelText("Weight"), "3");
+    await user.click(screen.getByRole("button", { name: "Add task" }));
+
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          stage: "onboarding",
+          label: "Ship skill-linked task",
+          type: "required",
+          skills: ["communication", "ownership"],
+          weight: 3,
+        }),
+      }),
+    );
+  });
 });
