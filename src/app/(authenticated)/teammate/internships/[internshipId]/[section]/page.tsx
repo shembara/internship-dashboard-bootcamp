@@ -102,11 +102,14 @@ export default async function TeammateInternshipSectionPage({
           internshipId={internshipId}
           variant="dark"
         />
-          {section === "stage-checklist" && internship.checklist ? ( <StageChecklist
+      ) : null}
+
+      {section === "stage-checklist" && internship.checklist ? (
+        <StageChecklist
           internshipId={internshipId}
           checklist={internship.checklist}
           variant="dark"
-        /> 
+        />
       ) : null}
 
       {isProgressHub && internship.progressHub ? (
