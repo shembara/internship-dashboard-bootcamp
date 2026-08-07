@@ -31,6 +31,7 @@ export type InternshipListItemDto = InternshipLifecycle & {
   id: string;
   internName: string;
   progressSummary?: import("@/lib/progress-hub/types").ProgressHubSummaryDto;
+  responsibilities?: string[];
 };
 
 export type CurrentInternshipDto = InternshipLifecycle & {

@@ -59,7 +59,6 @@ export const internSidebarConfig: RoleSidebarConfig = {
       icon: NotebookPen,
       items: [
         { label: "My Weekly Reflection", href: "/intern#my-weekly-reflection", icon: NotebookPen },
-        { label: "1:1 Preparation", href: "/intern#one-on-one-preparation", icon: CalendarCheck },
       ],
     },
     {
@@ -164,7 +163,6 @@ export const mentorSidebarConfig: RoleSidebarConfig = {
       items: [
         { label: "Mentor weekly check-in", href: "mentor-weekly-check-in", icon: ShieldCheck },
         { label: "Shared 1:1 agenda", href: "shared-one-on-one-agenda", icon: Users },
-        { label: "1:1 Preparation", href: "one-on-one-preparation", icon: CalendarCheck },
         { label: "Action items", href: "action-items", icon: CheckSquare },
         { label: "Shared notes", href: "shared-notes", icon: FileText },
         { label: "Mentor-private notes", href: "mentor-private-notes", icon: Lock },
