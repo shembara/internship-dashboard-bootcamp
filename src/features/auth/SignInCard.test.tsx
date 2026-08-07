@@ -24,13 +24,19 @@ describe("SignInCard", () => {
 
     render(<SignInCard />);
 
-    await waitFor(() => screen.getByText("Internship Dashboard"));
+    await waitFor(() =>
+      screen.getByText("Sign in to Internship Platform"),
+    );
 
-    expect(screen.getByText("Authenticate as manager2")).toBeTruthy();
-    expect(screen.getByText("Authenticate as guest")).toBeTruthy();
-    expect(screen.getByText("manager@fluxon.com")).toBeTruthy();
-    expect(screen.getByText("mentor@fluxon.com")).toBeTruthy();
-    expect(screen.getByText("intern@fluxon.com")).toBeTruthy();
-    expect(screen.getByText("guest@fluxon.com")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Authenticate as manager2" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Authenticate as guest" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Sasha Manager")).toBeTruthy();
+    expect(screen.getByText("Sasga Mentor")).toBeTruthy();
+    expect(screen.getByText("Sasha Intern")).toBeTruthy();
+    expect(screen.getByText("Sasha Guest")).toBeTruthy();
   });
 });

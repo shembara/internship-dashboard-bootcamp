@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import type { ApplicationUserOption, TeamOption } from "@/lib/assignments/types";
+import { managerTheme } from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 export function CreateInternshipForm({
   interns,
   teammates,
   onSuccess,
+  variant,
 }: {
   interns: ApplicationUserOption[];
   teammates: ApplicationUserOption[];
   onSuccess?: () => void;
+  variant?: "dark";
 }) {
   const router = useRouter();
   const [internId, setInternId] = useState("");
@@ -24,6 +28,11 @@ export function CreateInternshipForm({
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const dark = variant === "dark";
+  const inputClass = dark
+    ? managerTheme.input
+    : "h-10 rounded-lg border bg-background px-3";
+  const labelClass = dark ? managerTheme.label : "text-sm font-medium";
 
   useEffect(() => {
     void fetch("/api/manager/team-options")
@@ -64,14 +73,14 @@ export function CreateInternshipForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <label className="grid gap-2 text-sm font-medium">
-        Intern
+      <label className="grid gap-2">
+        <span className={labelClass}>Intern</span>
         <select
           name="internId"
           required
           value={internId}
           onChange={(event) => setInternId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={inputClass}
         >
           <option value="">Select an intern</option>
           {interns.map((intern) => (
@@ -82,53 +91,60 @@ export function CreateInternshipForm({
           ))}
         </select>
       </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Team
+      <label className="grid gap-2">
+        <span className={labelClass}>Team</span>
         <input
           required
           list="team-options"
           value={teamName}
           onChange={(event) => setTeamName(event.target.value)}
           placeholder="Select or enter a Team name"
-          className="h-10 rounded-lg border bg-background px-3"
+          className={inputClass}
         />
         <datalist id="team-options">
           {teams.map((team) => (
             <option key={team.id} value={team.title} />
           ))}
         </datalist>
-        <span className="text-xs font-normal text-muted-foreground">
+        <span
+          className={cn(
+            "text-xs font-normal",
+            dark ? managerTheme.muted : "text-muted-foreground",
+          )}
+        >
           A new name creates a Team when you submit.
         </span>
       </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Placement start date
-        <input
-          name="startsAt"
-          type="date"
-          required
-          value={startsAt}
-          onChange={(event) => setStartsAt(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
-        />
-      </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Expected end date
-        <input
-          name="endsAt"
-          type="date"
-          value={endsAt}
-          min={startsAt || undefined}
-          onChange={(event) => setEndsAt(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
-        />
-      </label>
-      <label className="grid gap-2 text-sm font-medium">
-        Initial mentor
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-2">
+          <span className={labelClass}>Placement start date</span>
+          <input
+            name="startsAt"
+            type="date"
+            required
+            value={startsAt}
+            onChange={(event) => setStartsAt(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+        <label className="grid gap-2">
+          <span className={labelClass}>Expected end date</span>
+          <input
+            name="endsAt"
+            type="date"
+            value={endsAt}
+            min={startsAt || undefined}
+            onChange={(event) => setEndsAt(event.target.value)}
+            className={inputClass}
+          />
+        </label>
+      </div>
+      <label className="grid gap-2">
+        <span className={labelClass}>Initial mentor</span>
         <select
           value={initialMentorUserId}
           onChange={(event) => setInitialMentorUserId(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={inputClass}
         >
           <option value="">Assign later</option>
           {teammates.map((teammate) => (
@@ -139,11 +155,15 @@ export function CreateInternshipForm({
         </select>
       </label>
       {error ? (
-        <p className="text-sm text-destructive" role="alert">
+        <p className="text-sm text-red-400" role="alert">
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={submitting}>
+      <Button
+        type="submit"
+        disabled={submitting}
+        className={dark ? cn(managerTheme.primaryButton, "h-10 w-full") : "w-full"}
+      >
         {submitting ? "Creating…" : "Create internship"}
       </Button>
     </form>

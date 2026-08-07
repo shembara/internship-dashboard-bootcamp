@@ -2,8 +2,32 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
 import { ProvisionUserForm } from "@/features/assignments/ProvisionUserForm";
+import { ManagerWorkspaceShell } from "@/features/manager-portfolio/ManagerWorkspaceShell";
+import {
+  managerIdentityBadge,
+  managerTheme,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 import { requireManagerPage } from "@/server/assignments/page-auth";
 import { listEligibleUsers } from "@/server/assignments/service";
+
+function PersonRow({
+  name,
+  identityState,
+}: {
+  name: string;
+  identityState: "pending" | "linked";
+}) {
+  const pending = identityState === "pending";
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#0d1117] px-4 py-3 text-sm">
+      <span className="text-[#c9d1d9]">{name}</span>
+      <span className={managerIdentityBadge(pending ? "pending" : "linked")}>
+        {pending ? "Awaiting sign-in" : "Linked"}
+      </span>
+    </li>
+  );
+}
 
 export default async function PeoplePage() {
   await requireManagerPage();
@@ -14,67 +38,66 @@ export default async function PeoplePage() {
   ]);
 
   return (
-    <section className="max-w-4xl space-y-6">
+    <ManagerWorkspaceShell className="max-w-4xl">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-[var(--brand-strong)]">
-            Manager workspace
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">People &amp; Access</h1>
-          <p className="mt-2 text-muted-foreground">
-            Provision managers, interns, and teammates/mentors before their first sign-in.
+          <p className={managerTheme.eyebrow}>Manager workspace</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            People &amp; Access
+          </h1>
+          <p className={cn("mt-2 text-sm leading-6", managerTheme.muted)}>
+            Provision managers, interns, and teammates/mentors before their first
+            sign-in.
           </p>
         </div>
         <Button
           nativeButton={false}
           render={<Link href="/manager/internships" />}
           variant="outline"
+          className={managerTheme.outlineButton}
         >
-          Internships
+          ← Internships
         </Button>
       </div>
-      <ProvisionUserForm />
+      <ProvisionUserForm variant="dark" />
       <div className="grid gap-4 sm:grid-cols-3">
-        <section className="rounded-xl border p-4">
-          <h2 className="font-semibold">Managers</h2>
-          <ul className="mt-3 space-y-2 text-sm">
+        <section className={cn(managerTheme.card, "p-4")}>
+          <h2 className={managerTheme.label}>Managers</h2>
+          <ul className="mt-3 space-y-2">
             {managers.map((person) => (
-              <li key={person.id}>
-                {person.displayName}{" "}
-                <span className="text-muted-foreground">
-                  {person.identityState === "pending" ? "Awaiting sign-in" : "Linked"}
-                </span>
-              </li>
+              <PersonRow
+                key={person.id}
+                name={person.displayName}
+                identityState={person.identityState}
+              />
             ))}
           </ul>
         </section>
-        <section className="rounded-xl border p-4">
-          <h2 className="font-semibold">Interns</h2>
-          <ul className="mt-3 space-y-2 text-sm">
+        <section className={cn(managerTheme.card, "p-4")}>
+          <h2 className={managerTheme.label}>Interns</h2>
+          <ul className="mt-3 space-y-2">
             {interns.map((person) => (
-              <li key={person.id}>
-                {person.displayName}{" "}
-                <span className="text-muted-foreground">
-                  {person.identityState === "pending" ? "Awaiting sign-in" : "Linked"}
-                </span>
-              </li>
+              <PersonRow
+                key={person.id}
+                name={person.displayName}
+                identityState={person.identityState}
+              />
             ))}
           </ul>
         </section>
-        <section className="rounded-xl border p-4">
-          <h2 className="font-semibold">Teammates / Mentors</h2>
-          <ul className="mt-3 space-y-2 text-sm">
+        <section className={cn(managerTheme.card, "p-4")}>
+          <h2 className={managerTheme.label}>Teammates / Mentors</h2>
+          <ul className="mt-3 space-y-2">
             {teammates.map((person) => (
-              <li key={person.id}>
-                {person.displayName}{" "}
-                <span className="text-muted-foreground">
-                  {person.identityState === "pending" ? "Awaiting sign-in" : "Linked"}
-                </span>
-              </li>
+              <PersonRow
+                key={person.id}
+                name={person.displayName}
+                identityState={person.identityState}
+              />
             ))}
           </ul>
         </section>
       </div>
-    </section>
+    </ManagerWorkspaceShell>
   );
 }

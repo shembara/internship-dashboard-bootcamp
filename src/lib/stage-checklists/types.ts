@@ -16,6 +16,25 @@ export type StageChecklistItemDto = {
   canDelete: boolean;
 };
 
+export const skillProgressAreas = [
+  { value: "technical", label: "Technical" },
+  { value: "communication", label: "Communication" },
+  { value: "ownership", label: "Ownership" },
+  { value: "codeQuality", label: "Code quality" },
+  { value: "productUnderstanding", label: "Product understanding" },
+  { value: "collaboration", label: "Collaboration" },
+  { value: "planning", label: "Planning" },
+  { value: "leadership", label: "Leadership" },
+] as const;
+
+export type SkillProgressArea = (typeof skillProgressAreas)[number]["value"];
+
+export type SkillProgressDto = {
+  area: SkillProgressArea;
+  completed: number;
+  total: number;
+};
+
 export type StageChecklistDto = {
   stage: InternshipStage;
   stageLabel: string;
