@@ -107,6 +107,7 @@ export default async function TeammateInternshipSectionPage({
           internshipId={internshipId}
           hub={internship.progressHub}
           visibleSection={section as ProgressHubSection}
+          variant="dark"
         />
       ) : null}
 

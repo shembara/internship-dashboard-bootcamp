@@ -42,7 +42,11 @@ export default async function InternPage() {
             </p>
           ) : null}
           {internship.progressHub ? (
-            <ProgressHub internshipId={internship.id} hub={internship.progressHub} />
+            <ProgressHub
+              internshipId={internship.id}
+              hub={internship.progressHub}
+              variant="dark"
+            />
           ) : null}
           {achievements ? (
             <Achievements
