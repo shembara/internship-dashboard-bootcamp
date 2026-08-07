@@ -1,10 +1,13 @@
 import type { InternshipLifecycle, InternshipStage } from "@/lib/internships/types";
 import type { ChecklistItemType } from "@/lib/stage-checklists/templates";
+import type { InternshipSkill, SkillProgressDto } from "@/lib/skills/types";
 
 export type StageChecklistItemDto = {
   key: string;
   label: string;
   type: ChecklistItemType;
+  skills: readonly InternshipSkill[];
+  weight: number;
   status: "todo" | "inProgress" | "done";
   completed: boolean;
   completedAt?: string;

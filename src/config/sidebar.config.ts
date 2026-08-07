@@ -92,7 +92,6 @@ export const managerSidebarConfig: RoleSidebarConfig = {
       icon: FolderOpen,
       items: [
         { label: "Internship lifecycle", href: "internship-lifecycle", icon: Clock3 },
-        { label: "Stage checklist", href: "stage-checklist", icon: CheckSquare },
         { label: "Internship status", href: "internship-status", icon: Activity },
       ],
     },
@@ -146,7 +145,6 @@ export const mentorSidebarConfig: RoleSidebarConfig = {
       icon: FolderOpen,
       items: [
         { label: "Internship lifecycle", href: "internship-lifecycle", icon: Clock3 },
-        { label: "Stage checklist", href: "stage-checklist", icon: CheckSquare },
       ],
     },
     {
