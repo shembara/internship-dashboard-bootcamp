@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 function dateValue(value: string | undefined) {
   return value?.slice(0, 10) ?? "";
@@ -14,15 +19,26 @@ export function ExpectedEndDateAction({
   internshipId,
   startsAt,
   endsAt,
+  variant = "default",
 }: {
   internshipId: string;
   startsAt: string;
   endsAt?: string;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
+  const modalVariant = variant === "dark" ? "dark" : undefined;
+
   return (
     <Modal
+      variant={modalVariant}
       trigger={
-        <Button type="button" size="sm" variant="outline">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className={styles.outlineButton}
+        >
           Edit expected end
         </Button>
       }
@@ -35,6 +51,7 @@ export function ExpectedEndDateAction({
           startsAt={startsAt}
           endsAt={endsAt}
           close={close}
+          variant={variant}
         />
       )}
     </Modal>
@@ -46,12 +63,15 @@ function ExpectedEndDateForm({
   startsAt,
   endsAt,
   close,
+  variant = "default",
 }: {
   internshipId: string;
   startsAt: string;
   endsAt?: string;
   close: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [value, setValue] = useState(dateValue(endsAt));
   const [pending, setPending] = useState(false);
@@ -79,25 +99,25 @@ function ExpectedEndDateForm({
   }
   return (
     <form onSubmit={submit} className="space-y-4">
-      <label className="grid gap-1 text-sm font-medium">
+      <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
         Expected end date
         <input
           type="date"
           value={value}
           min={dateValue(startsAt)}
           onChange={(event) => setValue(event.target.value)}
-          className="h-10 rounded-lg border bg-background px-3"
+          className={styles.input}
         />
       </label>
-      <p className="text-xs text-muted-foreground">
+      <p className={cn("text-xs", styles.muted)}>
         Clear the date and save to remove the estimate.
       </p>
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className={styles.primaryButton}>
         {pending ? "Saving…" : "Save expected end"}
       </Button>
     </form>

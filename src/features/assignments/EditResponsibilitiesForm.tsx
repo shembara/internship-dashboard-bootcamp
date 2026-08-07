@@ -5,17 +5,26 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/Button";
 import { teammateResponsibilities } from "@/lib/teammate-responsibilities";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
+
 export function EditResponsibilitiesForm({
   internshipId,
   assignmentId,
   selected,
   onSuccess,
+  variant = "default",
 }: {
   internshipId: string;
   assignmentId: string;
   selected: string[];
   onSuccess?: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +62,7 @@ export function EditResponsibilitiesForm({
   }
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 text-sm">
-      <span className="text-muted-foreground">Responsibilities:</span>
+      <span className={styles.muted}>Responsibilities:</span>
       <div className="flex flex-col gap-2">
         {teammateResponsibilities.map((responsibility) => (
           <label key={responsibility.value} className="flex items-center gap-1">
@@ -79,11 +88,11 @@ export function EditResponsibilitiesForm({
         size="sm"
         variant="outline"
         disabled={pending}
-        className="self-start"
+        className={cn("self-start", styles.outlineButton)}
       >
         {pending ? "Saving…" : "Save"}
       </Button>
-      {error ? <p className="text-destructive">{error}</p> : null}
+      {error ? <p className={styles.error}>{error}</p> : null}
     </form>
   );
 }

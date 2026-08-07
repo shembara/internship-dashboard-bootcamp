@@ -12,25 +12,33 @@ import type {
   ReflectionState,
   WeeklyReflectionDto,
 } from "@/lib/progress-hub/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 type TextFields = Record<string, string>;
+type Styles = ReturnType<typeof workspaceStyles>;
 
 function Field({
   label,
   value,
   onChange,
   disabled,
+  styles,
   required = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
+  styles: Styles;
   required?: boolean;
 }) {
   return (
     <label className="block space-y-1.5 text-sm">
-      <span className="font-medium">
+      <span className={styles.fieldLabel}>
         {label}
         {required ? " *" : ""}
       </span>
@@ -39,7 +47,7 @@ function Field({
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
         rows={3}
-        className="w-full rounded-lg border bg-background px-3 py-2 outline-none focus:border-[var(--brand)] disabled:cursor-not-allowed disabled:opacity-60"
+        className={styles.textarea}
       />
     </label>
   );
@@ -48,17 +56,19 @@ function Field({
 function Section({
   title,
   description,
+  styles,
   children,
 }: {
   title: string;
   description: string;
+  styles: Styles;
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
+    <section className={styles.section}>
       <div>
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <h2 className={styles.heading}>{title}</h2>
+        <p className={styles.description}>{description}</p>
       </div>
       {children}
     </section>
@@ -69,7 +79,7 @@ function stateLabel(state: ReflectionState | CheckInState | "missing") {
   return state === "missing" ? "Missing" : state[0].toUpperCase() + state.slice(1);
 }
 
-function Summary({ hub }: { hub: ProgressHubDto }) {
+function Summary({ hub, styles }: { hub: ProgressHubDto; styles: Styles }) {
   const { summary } = hub;
   const items = [
     ["Intern reflection", stateLabel(summary.reflectionState)],
@@ -83,21 +93,20 @@ function Summary({ hub }: { hub: ProgressHubDto }) {
     <Section
       title="Weekly overview"
       description={`${hub.currentWeek.label} · ${hub.currentWeek.state} week`}
+      styles={styles}
     >
       <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(([label, value]) => (
-          <div key={label} className="rounded-xl border bg-muted/30 p-3">
-            <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
+          <div key={label} className={styles.statCard}>
+            <dt className={cn("text-xs font-medium", styles.muted)}>{label}</dt>
             <dd className="mt-1 font-semibold">{value}</dd>
           </div>
         ))}
       </dl>
       {summary.nextDueAction ? (
-        <p className="text-sm text-muted-foreground">
+        <p className={cn("text-sm", styles.muted)}>
           Next due:{" "}
-          <span className="font-medium text-foreground">
-            {summary.nextDueAction.title}
-          </span>{" "}
+          <span className="font-medium text-inherit">{summary.nextDueAction.title}</span>{" "}
           by {summary.nextDueAction.dueDate}.
         </p>
       ) : null}
@@ -108,10 +117,12 @@ function Summary({ hub }: { hub: ProgressHubDto }) {
 function ReflectionForm({
   reflection,
   disabled,
+  styles,
   onSave,
 }: {
   reflection?: WeeklyReflectionDto;
   disabled: boolean;
+  styles: Styles;
   onSave: (state: ReflectionState, values: TextFields) => void;
 }) {
   const [values, setValues] = useState<TextFields>({
@@ -129,6 +140,7 @@ function ReflectionForm({
     <Section
       title="My weekly reflection"
       description="Capture progress, learning, and where you need support. Drafts are private to you."
+      styles={styles}
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field
@@ -136,30 +148,35 @@ function ReflectionForm({
           value={values.accomplishments}
           onChange={setField("accomplishments")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Learnings"
           value={values.learnings}
           onChange={setField("learnings")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Challenges"
           value={values.challenges}
           onChange={setField("challenges")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Next-week focus"
           value={values.nextWeekFocus}
           onChange={setField("nextWeekFocus")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Support needed"
           value={values.supportNeeded}
           onChange={setField("supportNeeded")}
           disabled={!editable}
+          styles={styles}
         />
       </div>
       {editable ? (
@@ -168,6 +185,7 @@ function ReflectionForm({
             type="button"
             variant="outline"
             disabled={disabled}
+            className={styles.outlineButton}
             onClick={() => onSave("draft", values)}
           >
             Save draft
@@ -175,13 +193,14 @@ function ReflectionForm({
           <Button
             type="button"
             disabled={disabled}
+            className={styles.primaryButton}
             onClick={() => onSave("submitted", values)}
           >
             Submit reflection
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">This reflection is read-only.</p>
+        <p className={cn("text-sm", styles.muted)}>This reflection is read-only.</p>
       )}
     </Section>
   );
@@ -190,10 +209,12 @@ function ReflectionForm({
 function CheckInForm({
   checkIn,
   disabled,
+  styles,
   onSave,
 }: {
   checkIn?: MentorCheckInDto;
   disabled: boolean;
+  styles: Styles;
   onSave: (state: CheckInState, values: TextFields) => void;
 }) {
   const [values, setValues] = useState<TextFields>({
@@ -211,6 +232,7 @@ function CheckInForm({
     <Section
       title="Mentor weekly check-in"
       description="Operational coaching notes, not formal performance feedback. The private note is never shown to the intern."
+      styles={styles}
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Field
@@ -218,38 +240,43 @@ function CheckInForm({
           value={values.progressSummary}
           onChange={setField("progressSummary")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Strengths observed"
           value={values.strengthsObserved}
           onChange={setField("strengthsObserved")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Areas to improve"
           value={values.areasToImprove}
           onChange={setField("areasToImprove")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Support needed"
           value={values.supportNeeded}
           onChange={setField("supportNeeded")}
           disabled={!editable}
+          styles={styles}
         />
         <Field
           label="Next-week focus"
           value={values.nextWeekFocus}
           onChange={setField("nextWeekFocus")}
           disabled={!editable}
+          styles={styles}
         />
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className={cn("text-xs", styles.muted)}>
         Need to keep a private note? Use the mentor-private notes section below — this
         check-in is shared with the manager.
       </p>
       {checkIn ? (
-        <p className="text-xs text-muted-foreground">
+        <p className={cn("text-xs", styles.muted)}>
           Original author: {checkIn.createdBy} · Last updated by: {checkIn.updatedBy}
         </p>
       ) : null}
@@ -259,6 +286,7 @@ function CheckInForm({
             type="button"
             variant="outline"
             disabled={disabled}
+            className={styles.outlineButton}
             onClick={() => onSave("draft", values)}
           >
             Save draft
@@ -266,13 +294,14 @@ function CheckInForm({
           <Button
             type="button"
             disabled={disabled}
+            className={styles.primaryButton}
             onClick={() => onSave("shared", values)}
           >
             Share check-in
           </Button>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">This check-in is read-only.</p>
+        <p className={cn("text-sm", styles.muted)}>This check-in is read-only.</p>
       )}
     </Section>
   );
@@ -281,10 +310,12 @@ function CheckInForm({
 function Agenda({
   hub,
   disabled,
+  styles,
   onSave,
 }: {
   hub: ProgressHubDto;
   disabled: boolean;
+  styles: Styles;
   onSave: (body: object) => Promise<boolean>;
 }) {
   const [text, setText] = useState("");
@@ -292,6 +323,7 @@ function Agenda({
     <Section
       title="Shared 1:1 agenda"
       description="Keep topics visible until they are resolved."
+      styles={styles}
     >
       {hub.capabilities.canCreateAgendaItem ? (
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -299,12 +331,13 @@ function Agenda({
             value={text}
             onChange={(event) => setText(event.target.value)}
             disabled={disabled}
-            className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 text-sm"
+            className={cn(styles.input, "min-w-0 flex-1")}
             placeholder="Add an agenda topic"
           />
           <Button
             type="button"
             disabled={disabled || !text.trim()}
+            className={styles.primaryButton}
             onClick={() => {
               void (async () => {
                 if (await onSave({ text })) setText("");
@@ -318,13 +351,8 @@ function Agenda({
       {hub.agendaItems.length ? (
         <ul className="space-y-2">
           {hub.agendaItems.map((item) => (
-            <li
-              key={item.id}
-              className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
-            >
-              <span
-                className={item.resolved ? "text-muted-foreground line-through" : ""}
-              >
+            <li key={item.id} className={cn(styles.listItem, "flex items-center justify-between gap-3")}>
+              <span className={item.resolved ? cn(styles.muted, "line-through") : ""}>
                 {item.text}
               </span>
               {item.canResolve ? (
@@ -333,6 +361,7 @@ function Agenda({
                   size="sm"
                   variant="outline"
                   disabled={disabled}
+                  className={styles.outlineButton}
                   onClick={() =>
                     onSave({ id: item.id, text: item.text, resolved: !item.resolved })
                   }
@@ -344,7 +373,7 @@ function Agenda({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No agenda topics yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No agenda topics yet.</p>
       )}
     </Section>
   );
@@ -356,6 +385,7 @@ function Notes({
   notes,
   canCreate,
   disabled,
+  styles,
   onSave,
 }: {
   title: string;
@@ -363,11 +393,12 @@ function Notes({
   notes: ProgressHubDto["sharedNotes"];
   canCreate: boolean;
   disabled: boolean;
+  styles: Styles;
   onSave: (text: string) => Promise<boolean>;
 }) {
   const [text, setText] = useState("");
   return (
-    <Section title={title} description={description}>
+    <Section title={title} description={description} styles={styles}>
       {canCreate ? (
         <div className="space-y-2">
           <textarea
@@ -375,13 +406,14 @@ function Notes({
             onChange={(event) => setText(event.target.value)}
             disabled={disabled}
             rows={3}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+            className={styles.textarea}
             placeholder="Write a note"
           />
           <Button
             type="button"
             variant="outline"
             disabled={disabled || !text.trim()}
+            className={styles.outlineButton}
             onClick={() => {
               void (async () => {
                 if (await onSave(text)) setText("");
@@ -395,16 +427,16 @@ function Notes({
       {notes.length ? (
         <ul className="space-y-2">
           {notes.map((note) => (
-            <li key={note.id} className="rounded-lg border p-3 text-sm">
+            <li key={note.id} className={styles.listItem}>
               <p className="whitespace-pre-wrap">{note.text}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className={cn("mt-2 text-xs", styles.muted)}>
                 {note.weekKey} · updated {new Date(note.updatedAt).toLocaleDateString()}
               </p>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No notes yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No notes yet.</p>
       )}
     </Section>
   );
@@ -413,11 +445,13 @@ function Notes({
 function ActionItems({
   hub,
   disabled,
+  styles,
   onSave,
   onToggle,
 }: {
   hub: ProgressHubDto;
   disabled: boolean;
+  styles: Styles;
   onSave: (body: object) => Promise<boolean>;
   onToggle: (item: ActionItemDto) => void;
 }) {
@@ -431,6 +465,7 @@ function ActionItems({
     <Section
       title="Action items"
       description="Shared follow-ups with server-derived due and overdue states."
+      styles={styles}
     >
       {hub.capabilities.canCreateActionItem ? (
         <div className="grid gap-2 sm:grid-cols-[1fr_170px_220px_auto]">
@@ -438,7 +473,7 @@ function ActionItems({
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className={styles.input}
             placeholder="Action item"
           />
           <input
@@ -446,13 +481,13 @@ function ActionItems({
             value={dueDate}
             onChange={(event) => setDueDate(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className={styles.input}
           />
           <select
             value={owner?.userId ?? ""}
             onChange={(event) => setOwnerUserId(event.target.value)}
             disabled={disabled}
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            className={styles.select}
             aria-label="Action owner"
           >
             {hub.actionOwners.map((option) => (
@@ -464,6 +499,7 @@ function ActionItems({
           <Button
             type="button"
             disabled={disabled || !title.trim() || !dueDate || !owner}
+            className={styles.primaryButton}
             onClick={() => {
               void (async () => {
                 if (
@@ -489,19 +525,22 @@ function ActionItems({
           {hub.actionItems.map((item) => (
             <li
               key={item.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+              className={cn(
+                styles.listItem,
+                "flex flex-wrap items-center justify-between gap-3",
+              )}
             >
               <div>
                 <p
                   className={
                     item.status === "completed"
-                      ? "line-through text-muted-foreground"
+                      ? cn(styles.muted, "line-through")
                       : "font-medium"
                   }
                 >
                   {item.title}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className={cn("mt-1 text-xs", styles.muted)}>
                   Due {item.dueDate}
                   {item.overdue ? " · Overdue" : ""}
                 </p>
@@ -512,6 +551,7 @@ function ActionItems({
                   size="sm"
                   variant="outline"
                   disabled={disabled}
+                  className={styles.outlineButton}
                   onClick={() => onToggle(item)}
                 >
                   {item.status === "completed" ? "Reopen" : "Complete"}
@@ -521,13 +561,19 @@ function ActionItems({
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No action items yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No action items yet.</p>
       )}
     </Section>
   );
 }
 
-function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDto[] }) {
+function SubmittedReflections({
+  reflections,
+  styles,
+}: {
+  reflections: WeeklyReflectionDto[];
+  styles: Styles;
+}) {
   const fields = [
     ["Accomplishments", "accomplishments"],
     ["Learnings", "learnings"],
@@ -540,18 +586,17 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
     <Section
       title="Intern reflections"
       description="Submitted weekly reflections from the intern. Drafts are private to the intern."
+      styles={styles}
     >
       {reflections.length ? (
         <ol className="space-y-3">
           {reflections.map((reflection) => (
-            <li key={reflection.weekKey} className="rounded-lg border p-4">
+            <li key={reflection.weekKey} className={cn(styles.innerCard, "p-4")}>
               <h3 className="font-medium">{reflection.weekKey}</h3>
               <dl className="mt-3 grid gap-3 md:grid-cols-2">
                 {fields.map(([label, key]) => (
                   <div key={key}>
-                    <dt className="text-xs font-medium text-muted-foreground">
-                      {label}
-                    </dt>
+                    <dt className={cn("text-xs font-medium", styles.muted)}>{label}</dt>
                     <dd className="mt-1 whitespace-pre-wrap text-sm">
                       {reflection[key] || "Not provided"}
                     </dd>
@@ -562,13 +607,13 @@ function SubmittedReflections({ reflections }: { reflections: WeeklyReflectionDt
           ))}
         </ol>
       ) : (
-        <p className="text-sm text-muted-foreground">No submitted reflections yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No submitted reflections yet.</p>
       )}
     </Section>
   );
 }
 
-function History({ hub }: { hub: ProgressHubDto }) {
+function History({ hub, styles }: { hub: ProgressHubDto; styles: Styles }) {
   const records =
     hub.viewer === "intern"
       ? hub.reflectionHistory
@@ -579,33 +624,35 @@ function History({ hub }: { hub: ProgressHubDto }) {
     <Section
       title="History"
       description="Recent weekly records are ordered from newest to oldest."
+      styles={styles}
     >
       {records.length ? (
         <ul className="space-y-2">
           {records.map((record) => (
             <li
               key={record.weekKey}
-              className="flex items-center justify-between rounded-lg border p-3 text-sm"
+              className={cn(styles.listItem, "flex items-center justify-between")}
             >
               <span>{record.weekKey}</span>
-              <span className="text-muted-foreground">{stateLabel(record.state)}</span>
+              <span className={styles.muted}>{stateLabel(record.state)}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No weekly history yet.</p>
+        <p className={cn("text-sm", styles.muted)}>No weekly history yet.</p>
       )}
     </Section>
   );
 }
 
-function FeedbackCycles() {
+function FeedbackCycles({ styles }: { styles: Styles }) {
   return (
     <Section
       title="Feedback cycles"
       description="Start and publish feedback cycles for this internship."
+      styles={styles}
     >
-      <div className="rounded-xl border border-dashed p-6 text-sm text-muted-foreground">
+      <div className={styles.dashedPlaceholder}>
         Feedback cycle management will be added here.
       </div>
     </Section>
@@ -629,12 +676,15 @@ export function ProgressHub({
   internshipId,
   hub,
   visibleSection,
+  variant = "default",
 }: {
   internshipId: string;
   hub: ProgressHubDto;
   visibleSection?: ProgressHubSection;
+  variant?: WorkspaceVariant;
 }) {
   const router = useRouter();
+  const styles = workspaceStyles(variant);
   const [pending, setPending] = useState<string>();
   const [error, setError] = useState("");
   const renderedHub = useRef(hub);
@@ -691,7 +741,7 @@ export function ProgressHub({
   }> = [
     {
       id: "weekly-overview",
-      node: <Summary hub={hub} />,
+      node: <Summary hub={hub} styles={styles} />,
     },
     ...(hub.viewer === "intern"
       ? [
@@ -701,6 +751,7 @@ export function ProgressHub({
               <ReflectionForm
                 reflection={hub.reflection}
                 disabled={pendingMutation || !hub.capabilities.canSaveReflection}
+                styles={styles}
                 onSave={(state, values) =>
                   mutate(
                     "reflection",
@@ -721,6 +772,7 @@ export function ProgressHub({
               <CheckInForm
                 checkIn={hub.checkIn}
                 disabled={pendingMutation || !hub.capabilities.canSaveCheckIn}
+                styles={styles}
                 onSave={(state, values) =>
                   mutate("check-in", { weekKey, state, ...values }, `check-in-${state}`)
                 }
@@ -733,7 +785,7 @@ export function ProgressHub({
       ? [
           {
             id: "intern-reflections" as const,
-            node: <SubmittedReflections reflections={hub.reflections} />,
+            node: <SubmittedReflections reflections={hub.reflections} styles={styles} />,
           },
         ]
       : []),
@@ -743,6 +795,7 @@ export function ProgressHub({
         <Agenda
           hub={hub}
           disabled={pendingMutation}
+          styles={styles}
           onSave={(body) => mutate("agenda", body, "agenda")}
         />
       ),
@@ -756,6 +809,7 @@ export function ProgressHub({
           notes={hub.sharedNotes}
           canCreate={hub.capabilities.canCreateSharedNote}
           disabled={pendingMutation}
+          styles={styles}
           onSave={(text) => mutate("notes/shared", { weekKey, text }, "shared-note")}
         />
       ),
@@ -771,6 +825,7 @@ export function ProgressHub({
                 notes={hub.privateInternNotes}
                 canCreate={hub.capabilities.canCreatePrivateInternNote}
                 disabled={pendingMutation}
+                styles={styles}
                 onSave={(text) =>
                   mutate("notes/private-intern", { weekKey, text }, "private-intern-note")
                 }
@@ -790,6 +845,7 @@ export function ProgressHub({
                 notes={hub.privateMentorNotes}
                 canCreate={hub.capabilities.canCreatePrivateMentorNote}
                 disabled={pendingMutation}
+                styles={styles}
                 onSave={(text) =>
                   mutate("notes/private-mentor", { weekKey, text }, "private-mentor-note")
                 }
@@ -804,6 +860,7 @@ export function ProgressHub({
         <ActionItems
           hub={hub}
           disabled={pendingMutation}
+          styles={styles}
           onSave={(body) => mutate("action-items", body, "action-item")}
           onToggle={(item) =>
             mutate(
@@ -818,11 +875,11 @@ export function ProgressHub({
     },
     {
       id: "history",
-      node: <History hub={hub} />,
+      node: <History hub={hub} styles={styles} />,
     },
     {
       id: "feedback-cycles",
-      node: <FeedbackCycles />,
+      node: <FeedbackCycles styles={styles} />,
     },
   ];
 
@@ -834,13 +891,8 @@ export function ProgressHub({
     <section className="space-y-6" aria-labelledby="progress-hub-heading">
       {visibleSection ? null : (
         <div>
-          <p className="text-sm font-medium text-[var(--brand-strong)]">
-            Intern Progress Hub
-          </p>
-          <h1
-            id="progress-hub-heading"
-            className="mt-1 text-2xl font-semibold tracking-tight"
-          >
+          <p className={styles.eyebrow}>Intern Progress Hub</p>
+          <h1 id="progress-hub-heading" className={cn("mt-1", styles.subheading)}>
             Weekly progress and 1:1 workspace
           </h1>
         </div>
@@ -853,7 +905,7 @@ export function ProgressHub({
       ))}
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}

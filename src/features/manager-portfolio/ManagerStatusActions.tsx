@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import type { InternshipStatus } from "@/lib/internships/types";
+import {
+  type WorkspaceVariant,
+  workspaceStyles,
+} from "@/lib/manager-workspace/theme";
+import { cn } from "@/lib/utils";
 
 type StatusAction = "pause" | "resume" | "cancel" | "complete";
 
@@ -35,11 +40,14 @@ function StatusForm({
   internshipId,
   action,
   close,
+  variant = "default",
 }: {
   internshipId: string;
   action: StatusAction;
   close: () => void;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
   const router = useRouter();
   const [reason, setReason] = useState("");
   const [completionDate, setCompletionDate] = useState("");
@@ -69,35 +77,37 @@ function StatusForm({
   }
   return (
     <form onSubmit={submit} className="space-y-4">
-      <p className="text-sm">{actionCopy[action].consequence}</p>
+      <p className={cn("text-sm", variant === "dark" ? "text-[#c9d1d9]" : undefined)}>
+        {actionCopy[action].consequence}
+      </p>
       {action === "cancel" || action === "pause" ? (
-        <label className="grid gap-1 text-sm font-medium">
+        <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
           Reason{" "}
           <textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
-            className="rounded-lg border bg-background p-2"
+            className={styles.textarea}
           />
         </label>
       ) : null}
       {action === "complete" ? (
-        <label className="grid gap-1 text-sm font-medium">
+        <label className={cn("grid gap-1 text-sm", styles.fieldLabel)}>
           Completion date{" "}
           <input
             type="date"
             value={completionDate}
             onChange={(event) => setCompletionDate(event.target.value)}
-            className="h-10 rounded-lg border bg-background px-3"
+            className={styles.input}
           />
         </label>
       ) : null}
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending} className={styles.primaryButton}>
         {pending ? "Saving…" : `Confirm ${actionCopy[action].label.toLowerCase()}`}
       </Button>
     </form>
@@ -107,10 +117,14 @@ function StatusForm({
 export function ManagerStatusActions({
   internshipId,
   status,
+  variant = "default",
 }: {
   internshipId: string;
   status: InternshipStatus;
+  variant?: WorkspaceVariant;
 }) {
+  const styles = workspaceStyles(variant);
+  const modalVariant = variant === "dark" ? "dark" : undefined;
   const actions: StatusAction[] =
     status === "active"
       ? ["pause", "cancel", "complete"]
@@ -119,7 +133,7 @@ export function ManagerStatusActions({
         : [];
   if (!actions.length)
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className={cn("text-sm", styles.muted)}>
         This historical internship is read-only.
       </p>
     );
@@ -128,11 +142,15 @@ export function ManagerStatusActions({
       {actions.map((action) => (
         <Modal
           key={action}
+          variant={modalVariant}
           trigger={
             <Button
               type="button"
               size="sm"
               variant={action === "cancel" ? "outline" : "default"}
+              className={
+                action === "cancel" ? styles.outlineButton : styles.primaryButton
+              }
             >
               {actionCopy[action].label}
             </Button>
@@ -141,7 +159,12 @@ export function ManagerStatusActions({
           description="Confirm this status change."
         >
           {(close) => (
-            <StatusForm internshipId={internshipId} action={action} close={close} />
+            <StatusForm
+              internshipId={internshipId}
+              action={action}
+              close={close}
+              variant={variant}
+            />
           )}
         </Modal>
       ))}
