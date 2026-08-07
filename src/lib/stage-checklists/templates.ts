@@ -114,7 +114,7 @@ const mentorOrManagerItem = (
   type,
   skills: skillsFor(key),
   weight: 1,
-  allowedCompletionActors: ["intern", "mentor", "manager"],
+  allowedCompletionActors: ["mentor", "manager"],
 });
 
 export const stageChecklistTemplates = [
@@ -126,7 +126,7 @@ export const stageChecklistTemplates = [
         "Required accounts and tools configured",
         "required",
       ),
-      mentorOrManagerItem(
+      internItem(
         "project-repository-access-received",
         "Project repository access received",
         "required",
@@ -138,7 +138,7 @@ export const stageChecklistTemplates = [
         "Local project successfully launched",
         "required",
       ),
-      mentorOrManagerItem(
+      internItem(
         "development-environment-verified",
         "Development environment verified with mentor",
         "required",
@@ -246,9 +246,9 @@ export const stageChecklistTemplates = [
         "Pull request description includes context and testing information",
         "required",
       ),
-      mentorOrManagerItem("code-review-received", "Code review received", "required"),
+      internItem("code-review-received", "Code review received", "required"),
       internItem("review-comments-addressed", "Review comments addressed", "required"),
-      mentorOrManagerItem(
+      internItem(
         "first-pull-request-merged",
         "First pull request merged",
         "required",
