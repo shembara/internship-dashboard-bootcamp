@@ -114,7 +114,7 @@ const mentorOrManagerItem = (
   type,
   skills: skillsFor(key),
   weight: 1,
-  allowedCompletionActors: ["mentor", "manager"],
+  allowedCompletionActors: ["intern", "mentor", "manager"],
 });
 
 export const stageChecklistTemplates = [
