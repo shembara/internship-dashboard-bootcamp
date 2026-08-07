@@ -4,7 +4,7 @@ export type WorkspaceVariant = "default" | "dark";
 
 export const managerTheme = {
   page: "-mx-5 -mb-5 min-h-[calc(100vh-4rem)] space-y-6 bg-transparent px-5 pb-5 pt-1 text-white sm:-mx-8 sm:-mb-8 sm:px-8 sm:pb-8",
-  card: "rounded-2xl border border-white/10 bg-[#161b22]",
+  card: "rounded-2xl border border-white/10 bg-[#161b22] text-white",
   cardAccent:
     "rounded-2xl border border-emerald-500/20 bg-[#161b22] shadow-[0_0_32px_rgba(16,185,129,0.12)]",
   label: "text-xs font-medium uppercase tracking-[0.08em] text-[#8b949e]",
@@ -38,8 +38,8 @@ export function workspaceStyles(variant: WorkspaceVariant = "default") {
     return {
       section: cn(managerTheme.card, "space-y-4 p-5"),
       sectionFlat: cn(managerTheme.card, "p-5"),
-      statCard: "rounded-xl border border-white/10 bg-[#0d1117] p-3",
-      innerCard: "rounded-xl border border-white/10 p-3",
+      statCard: "rounded-xl border border-white/10 bg-[#0d1117] p-3 text-white",
+      innerCard: "rounded-xl border border-white/10 p-3 text-[#c9d1d9]",
       listItem: "rounded-lg border border-white/10 p-3 text-sm text-[#c9d1d9]",
       muted: managerTheme.muted,
       mutedDim: managerTheme.mutedDim,
@@ -62,13 +62,13 @@ export function workspaceStyles(variant: WorkspaceVariant = "default") {
         "rounded-xl border border-dashed border-white/15 p-6 text-sm text-[#8b949e]",
       error: "text-sm text-red-400",
       borderDivider: "border-white/10",
-      kanbanColumn: "min-h-48 rounded-xl border border-white/10 bg-[#0d1117]/60 p-3",
+      kanbanColumn: "min-h-48 rounded-xl border border-white/10 bg-[#0d1117]/60 p-3 text-[#c9d1d9]",
       kanbanColumnTodo: "text-red-400",
       kanbanColumnProgress: "text-amber-400",
       kanbanColumnDone: "text-emerald-400",
       progressBar: "h-3 w-full overflow-hidden rounded-full bg-[#0d1117]",
       progressFill: "h-full rounded-full bg-emerald-500 transition-[width]",
-      lifecycleCard: cn(managerTheme.card, "p-5"),
+      lifecycleCard: cn(managerTheme.card, "p-5 text-white"),
       lifecycleCompleted: "border-emerald-500/30 bg-emerald-500/10",
       lifecycleCurrent:
         "border-emerald-500/50 bg-emerald-500/10 shadow-[0_0_24px_rgba(16,185,129,0.15)]",

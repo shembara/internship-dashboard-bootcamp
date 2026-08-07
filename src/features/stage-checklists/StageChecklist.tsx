@@ -53,7 +53,7 @@ function SkillProgress({
             <div key={skill.area} className="space-y-1.5">
               <div className="flex items-center justify-between gap-3 text-sm">
                 <dt className={styles.muted}>{label}</dt>
-                <dd className="shrink-0 font-medium">
+                <dd className={cn("shrink-0 font-medium", variant === "dark" && "text-white")}>
                   {skill.completed}/{skill.total}
                 </dd>
               </div>
@@ -117,7 +117,9 @@ function TaskCard({
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium leading-snug">{item.label}</p>
+        <p className={cn("text-sm font-medium leading-snug", variant === "dark" && "text-white")}>
+          {item.label}
+        </p>
         <span
           className={
             item.type === "required" ? styles.requiredBadge : styles.recommendedBadge
@@ -126,7 +128,7 @@ function TaskCard({
           {item.type === "required" ? "Required" : "Recommended"}
         </span>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className={cn("mt-2 text-xs", styles.muted)}>
         {item.skills
           .map((skill) => internshipSkills.find((option) => option.value === skill)?.label)
           .filter(Boolean)
@@ -250,10 +252,10 @@ function AddTaskForm({
           maxLength={160}
         />
       </label>
-      <label className="block space-y-1.5 text-sm font-medium">
+      <label className={cn("block space-y-1.5 text-sm", styles.fieldLabel)}>
         Primary skill
         <select
-          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          className={cn(styles.select, "font-normal")}
           value={primarySkill}
           onChange={(event) => setPrimarySkill(event.target.value as InternshipSkill)}
         >
@@ -262,10 +264,10 @@ function AddTaskForm({
           ))}
         </select>
       </label>
-      <label className="block space-y-1.5 text-sm font-medium">
+      <label className={cn("block space-y-1.5 text-sm", styles.fieldLabel)}>
         Secondary skill (optional)
         <select
-          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          className={cn(styles.select, "font-normal")}
           value={secondarySkill}
           onChange={(event) => setSecondarySkill(event.target.value as InternshipSkill | "")}
         >
@@ -275,13 +277,13 @@ function AddTaskForm({
           ))}
         </select>
       </label>
-      <label className="block space-y-1.5 text-sm font-medium">
+      <label className={cn("block space-y-1.5 text-sm", styles.fieldLabel)}>
         Weight
         <input
           type="number"
           min={customTaskPointLimits.min}
           max={customTaskPointLimits.max}
-          className="w-full rounded-lg border bg-background px-3 py-2 font-normal"
+          className={cn(styles.input, "font-normal")}
           value={weight}
           onChange={(event) => setWeight(event.target.value)}
           required

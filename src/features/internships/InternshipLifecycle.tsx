@@ -84,7 +84,9 @@ export function InternshipLifecycle({
           </div>
           <div className="flex items-center gap-2">
             <dt className={styles.muted}>Current stage</dt>
-            <dd className="font-medium">{internshipStages[currentStageIndex].label}</dd>
+            <dd className={cn("font-medium", variant === "dark" && "text-white")}>
+              {internshipStages[currentStageIndex].label}
+            </dd>
           </div>
         </dl>
       </div>
@@ -133,7 +135,12 @@ export function InternshipLifecycle({
                 <StateIcon className="size-3.5" />
               </span>
               <div className="min-w-0">
-                <h3 className="flex items-center gap-1.5 text-sm font-medium leading-snug">
+                <h3
+                  className={cn(
+                    "flex items-center gap-1.5 text-sm font-medium leading-snug",
+                    variant === "dark" && "text-white",
+                  )}
+                >
                   {stage.label}
                   {locked ? <Lock className="size-3.5" aria-label="Locked" /> : null}
                 </h3>
