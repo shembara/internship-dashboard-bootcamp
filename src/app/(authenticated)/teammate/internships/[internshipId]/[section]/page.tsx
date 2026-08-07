@@ -1,5 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
+import { FileText } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Breadcrumbs } from "@/components/ui/Breadcrumbs";
 import { InternshipLifecycle } from "@/features/internships/InternshipLifecycle";
 import {
@@ -76,20 +78,35 @@ export default async function TeammateInternshipSectionPage({
 
   return (
     <section className="workspace-page space-y-7">
-      <div className="space-y-2">
-        <Breadcrumbs
-          variant="dark"
-          items={[
-            { label: "Internships", href: "/teammate" },
-            {
-              label: internship.internName,
-              href: `/teammate/internships/${internshipId}`,
-            },
-            { label: sectionLabel },
-          ]}
-        />
-        <p className={styles.eyebrow}>Teammate workspace</p>
-        <h1 className={styles.pageHeading}>{internship.internName}</h1>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Breadcrumbs
+            variant="dark"
+            items={[
+              { label: "Internships", href: "/teammate" },
+              {
+                label: internship.internName,
+                href: `/teammate/internships/${internshipId}`,
+              },
+              { label: sectionLabel },
+            ]}
+          />
+          <p className={styles.eyebrow}>Teammate workspace</p>
+          <h1 className={styles.pageHeading}>{internship.internName}</h1>
+        </div>
+
+        <Button
+          nativeButton={false}
+          render={
+            <a
+              href={`/api/internships/${internshipId}/report`}
+              download
+            />
+          }
+          variant="outline"
+        >
+          <FileText className="size-4" /> Export PDF Report
+        </Button>
       </div>
 
       {section === "internship-lifecycle" ? (
