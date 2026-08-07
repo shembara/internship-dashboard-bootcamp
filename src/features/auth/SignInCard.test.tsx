@@ -35,7 +35,7 @@ describe("SignInCard", () => {
       screen.getByRole("button", { name: "Authenticate as guest" }),
     ).toBeTruthy();
     expect(screen.getByText("Sasha Manager")).toBeTruthy();
-    expect(screen.getByText("Sasga Mentor")).toBeTruthy();
+    expect(screen.getByText("Sasha Mentor")).toBeTruthy();
     expect(screen.getByText("Sasha Intern")).toBeTruthy();
     expect(screen.getByText("Sasha Guest")).toBeTruthy();
   });
